@@ -27,13 +27,19 @@
 - [tests/test_agents.py] 五條規則行為、不自殺、動作合法性、可重現、贏過隨機基線。
   全套 78/78 通過
 
+- [agents/expectimax.py] Expectimax 代理:回合內 Max 節點窮舉、end_turn 為
+  Chance 節點取樣 K 個未來取平均、common random numbers 控變異數、
+  未知敵人回退「意圖重複」模型。測試含「毒的盲點」代差場景。全套 83/83 通過
+
 ## 進行中
-- 無(W2 完成)
+- 無(W3 完成)
 
 ## 待辦(依優先序)
-1. agents/expectimax.py(W3:深度 2-3,機率節點取樣)
-2. 平衡議程:巨鼠/毒蛛 vs 起始牌組過弱——隨機代理勝率都 95%+、規則式 100%
-   (2026-07-07 首批模擬數據)。W3 做完有兩個代理可對照時再調,單一變因原則
+1. 平衡調整(單一變因:敵人 HP):三代理勝率全 100% 飽和,只剩勝場剩 HP
+   有區別度(石像兵:rule 37.3 vs expectimax 40.4)。調完重跑 = 第一次正式
+   A/B 對照(前後表格都存檔)
+2. agents/mcts.py(W4:MCTS+UCB1 + determinization)
+3. 效能議程:expectimax 打石像兵 0.4s/場(200 場 81s),W4 前視需要剖析
 
 ## 重要決策紀錄
 - 2026-07-07:GameState.clone() 的 RNG 預設為 share 模式(共用 Random 物件)。
