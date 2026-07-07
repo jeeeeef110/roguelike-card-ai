@@ -140,7 +140,7 @@ class GameState:
         self.battle_over = False
         self.player_won = False
 
-    def clone(self, rng: str | int = "share") -> "GameState":
+    def clone(self, rng: "str | int | Random" = "share") -> "GameState":
         """複製狀態。rng 參數決定 RNG 處理方式(效能關鍵,勿改回無腦深複製):
 
         - "share"(預設):複本與原本共用同一個 Random 物件。
@@ -149,9 +149,12 @@ class GameState:
         - "replay":完整複製 RNG 內部狀態(慢,約 4.5 萬次/秒)。
           用於需要「從此刻精確重播」的除錯場景。
         - int:以該整數重新播種。用於 determinization(rollout 前洗假想牌庫)。
+        - Random 物件:直接掛上該物件(呼叫端自備的草稿 RNG)。
+          用於搜尋型代理的大量評估複本——剖析發現 clone(rng=int) 的
+          Mersenne Twister 播種佔 Expectimax 三分之一時間,重用一顆免播種。
 
         實測(Python 3.12):share 模式 >100 萬次/秒,replay 模式 ~4 萬次/秒。
-        瓶頸在 Mersenne Twister 的 625-int 狀態複製,故預設繞開它。
+        瓶頸在 Mersenne Twister 的 625-int 狀態複製/播種,故預設繞開它。
         """
         c = GameState.__new__(GameState)
         c.player = self.player.clone()
@@ -162,6 +165,8 @@ class GameState:
         elif rng == "replay":
             c.rng = Random()
             c.rng.setstate(self.rng.getstate())
+        elif isinstance(rng, Random):
+            c.rng = rng
         else:
             c.rng = Random(rng)
         c.battle_over = self.battle_over

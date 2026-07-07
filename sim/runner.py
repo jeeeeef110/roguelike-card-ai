@@ -16,6 +16,7 @@ import time
 
 from agents.base import Agent, RandomAgent
 from agents.expectimax import ExpectimaxAgent
+from agents.mcts import MCTSAgent
 from agents.rule_based import RuleBasedAgent
 from core.cards import PLAYER_HP, STARTING_DECK
 from core.enemies import ENEMIES, enemy_ai, make_enemy
@@ -60,6 +61,7 @@ AGENTS = {
     "random": lambda i: RandomAgent(seed=i),
     "rule": lambda i: RuleBasedAgent(),
     "expectimax": lambda i: ExpectimaxAgent(depth=2, samples=3, seed=i),
+    "mcts": lambda i: MCTSAgent(iterations=200, seed=i),
 }
 
 

@@ -36,8 +36,9 @@ def test_takes_immediate_kill():
 
 
 def test_blocks_lethal_via_lookahead():
-    """不出防禦 → 下回合已死(-1000)。前瞻自然導出擋致死,不需手寫規則。"""
-    s = battle(["iron_wall", "strike"])
+    """不出防禦 → 下回合已死(-1000)。前瞻自然導出擋致死,不需手寫規則。
+    能量 2:鐵壁(2 費)/打擊(1 費)擇一,保命 vs 輸出是真二選一。"""
+    s = battle(["iron_wall", "strike"], energy=2)
     s.player.hp = 8
     s.enemy.intent = ("attack", 10)
     assert ExpectimaxAgent(depth=2).choose_action(s) == ("play", "iron_wall")
