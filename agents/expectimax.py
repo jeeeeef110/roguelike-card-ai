@@ -24,7 +24,7 @@ from random import Random
 from core.engine import apply_action, legal_actions
 from core.models import GameState
 
-from agents.base import Agent
+from agents.base import Agent, enemy_model
 
 _WIN, _LOSS = 1000.0, -1000.0
 
@@ -42,6 +42,8 @@ class ExpectimaxAgent(Agent):
         self.depth = depth
         self.samples = samples
         self.rng = Random(seed)
+        # 回合內評估複本共用的草稿 RNG(免重複播種,見 models.clone 註解)
+        self._scratch = Random(0)
 
     def choose_action(self, state: GameState) -> tuple:
         # 這一手的所有取樣共用同一組 seed:候選動作間的比較才公平
@@ -64,7 +66,7 @@ class ExpectimaxAgent(Agent):
                       seeds: list[int]) -> float:
         if action[0] == "end_turn":
             return self._chance_value(state, depth, seeds)
-        c = state.clone(rng=0)  # 回合內視為確定性(僅洗牌用 RNG)
+        c = state.clone(rng=self._scratch)  # 回合內近乎確定(僅洗牌用 RNG)
         apply_action(c, action)
         if c.battle_over:
             return _evaluate(c)
@@ -74,11 +76,7 @@ class ExpectimaxAgent(Agent):
 
     def _chance_value(self, state: GameState, depth: int,
                       seeds: list[int]) -> float:
-        from core.enemies import ENEMIES, enemy_ai
-        # 腦內推演的敵人模型:註冊表裡的用真狀態機;未知敵人(測試 dummy)
-        # 假設意圖重複——代理的世界模型,不是遊戲規則
-        model = (enemy_ai if state.enemy.enemy_id in ENEMIES
-                 else (lambda st: st.enemy.intent))
+        model = enemy_model(state)
         total = 0.0
         for seed in seeds:
             c = state.clone(rng=seed)  # determinization:這個未來被定下來

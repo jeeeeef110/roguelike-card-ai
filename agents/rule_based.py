@@ -16,6 +16,8 @@ Expectimax / MCTS 要拉開差距的地方——不要「修好」它。
 評估用複本一律 clone(rng=0):與本尊 RNG 隔離,試打中的抽牌
 不會推進真實戰鬥的亂數序,同 seed 重播才成立。
 """
+from random import Random
+
 from core.engine import apply_action, card_cost, enemy_attack_value, legal_actions
 from core.models import GameState
 
@@ -33,9 +35,12 @@ def _incoming_damage(state: GameState) -> int:
     return 0
 
 
+_SCRATCH_RNG = Random(0)  # 評估複本共用,免重複播種
+
+
 def _try(state: GameState, action: tuple) -> GameState:
-    """在隔離 RNG 的複本上試執行一個動作。"""
-    c = state.clone(rng=0)
+    """在隔離 RNG 的複本上試執行一個動作(不推進真實戰鬥的亂數序)。"""
+    c = state.clone(rng=_SCRATCH_RNG)
     apply_action(c, action)
     return c
 

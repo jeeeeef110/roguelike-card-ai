@@ -21,6 +21,15 @@ class Agent:
         raise NotImplementedError
 
 
+def enemy_model(state: GameState):
+    """搜尋型代理腦內推演用的敵人模型(不是遊戲規則):
+    已註冊的敵人用真實意圖狀態機;未知敵人(測試 dummy)假設意圖重複。"""
+    from core.enemies import ENEMIES, enemy_ai
+    if state.enemy.enemy_id in ENEMIES:
+        return enemy_ai
+    return lambda st: st.enemy.intent
+
+
 class RandomAgent(Agent):
     """均勻亂選的地板基線:任何有腦的代理都該贏過它。"""
 
