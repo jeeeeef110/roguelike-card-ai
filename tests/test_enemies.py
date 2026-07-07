@@ -19,9 +19,9 @@ def battle_vs(enemy_id: str, seed: int = 42) -> GameState:
 
 def test_stats_match_spec():
     rat, spider, golem = map(make_enemy, ["giant_rat", "poison_spider", "stone_golem"])
-    assert (rat.hp, rat.block_persists) == (28, False)
-    assert (spider.hp, spider.block_persists) == (22, False)
-    assert (golem.hp, golem.block_persists) == (40, True)
+    assert (rat.hp, rat.block_persists) == (42, False)
+    assert (spider.hp, spider.block_persists) == (33, False)
+    assert (golem.hp, golem.block_persists) == (60, True)
     with pytest.raises(KeyError):
         make_enemy("slime")
 

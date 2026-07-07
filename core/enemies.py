@@ -50,10 +50,11 @@ def _stone_golem(state: GameState) -> tuple:
 
 
 # enemy_id → (HP, 護甲不歸零, 意圖函式)
+# HP 為 v2.3 平衡值(原 28/22/40,+50%:三代理勝率全 100% 飽和 → 拉長戰鬥)
 ENEMIES: dict[str, tuple[int, bool, object]] = {
-    "giant_rat": (28, False, _giant_rat),
-    "poison_spider": (22, False, _poison_spider),
-    "stone_golem": (40, True, _stone_golem),
+    "giant_rat": (42, False, _giant_rat),
+    "poison_spider": (33, False, _poison_spider),
+    "stone_golem": (60, True, _stone_golem),
 }
 
 
