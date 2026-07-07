@@ -27,6 +27,6 @@ tests/    # pytest,每個測試對應一條遊戲規則
 
 ## 文件
 
-- 設計定稿:《[專案完整資料 v2.2 定稿](專案完整資料_v2.2_定稿.md)》(含 v2.3 試玩後平衡修正)
+- 設計文件:[docs/design.md](docs/design.md)(v2.2 定稿 + v2.3 試玩後平衡修正)
 - 開發紀錄與決策:[PROGRESS.md](PROGRESS.md)
 - commit 格式:`[模組] 做了什麼`
