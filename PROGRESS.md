@@ -8,15 +8,18 @@
 - [core/cards.py] 25 張卡資料定義(照 v2.2 §3.3)+ CARDS 註冊表 + STARTING_DECK +
   RARITY_WEIGHTS。效果指令集(opcodes)完整列在檔頭 docstring,供 engine.py 實作依據
 - [tests/test_cards.py] 25 張/id 一致、起始牌組、稀有度分佈、effects 結構、
-  kind 分類規則、關鍵卡逐格抽查。測試 15/15 通過(含 models)
+  kind 分類規則、關鍵卡逐格抽查
+- [core/engine.py] 規則引擎:傷害管線(力量→易傷×1.5 取整→護甲)、全部 opcodes、
+  回合流程、敵人意圖執行、代理接口 legal_actions/apply_action(enemy_ai 注入式)
+- [tests/test_engine.py] 33 個規則測試(傷害管線/回合資源/特殊卡/接口與勝負,
+  含 200 步隨機冒煙測試)。全套 48/48 通過
 
 ## 進行中
 - 無(本階段完整結束)
 
 ## 待辦(依優先序)
-1. core/engine.py:出牌結算、效果解讀、回合流程(W1 主體;opcodes 見 cards.py 檔頭)
-2. core/enemies.py:三隻敵人意圖狀態機 + 被動特性
-3. 終端手動對戰迴圈(驗收 W1:能打完一整場)
+1. core/enemies.py:三隻敵人意圖狀態機 + 被動特性(engine 的 enemy_ai 接口已留好)
+2. 終端手動對戰迴圈(驗收 W1:能打完一整場)
 
 ## 重要決策紀錄
 - 2026-07-07:GameState.clone() 的 RNG 預設為 share 模式(共用 Random 物件)。
@@ -34,6 +37,15 @@
   用專屬 opcode 帶條件加成參數。背水 self_damage 定案為直接扣 HP、不經護甲
 - 2026-07-07:充能/回收需玩家選擇 → opcode 帶 _choose 後綴
   (discard_choose / retrieve_choose),engine 出牌介面需支援附帶選擇參數
+- 2026-07-07(Jeff 拍板):中毒不吃易傷 ×1.5——毒流與易傷流獨立平衡,
+  避免必選組合;中毒在玩家回合開始結算雙方(回饋直觀、引爆基準單純)
+- 2026-07-07:引爆定為純轉換——不吃力量、不吃易傷、可被護甲抵擋。
+  取捨:毒 tick 穿甲、引爆不穿,保留「持續 vs 爆發」的決策張力
+- 2026-07-07:engine 細部結算——破甲先打 5(過管線)再移除剩餘護甲追加等量直傷;
+  撕裂不計自己(attacks_played 結算後才 +1);背水自傷不經護甲、可陣亡;
+  織網歸零在敵人行動前,故敵人本回合織網 → 效果自然落在玩家下回合
+- 2026-07-07:敵人的「腦」不進 engine——enemy_ai(state)->intent 由呼叫端注入,
+  enemies.py 只要提供各敵人的意圖函式,engine 不用改
 
 ## 已知問題
 - 無
