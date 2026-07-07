@@ -47,11 +47,20 @@ def _hit_enemy(state: GameState, base: int, *, use_strength: bool = True,
     _check_battle_end(state)
 
 
-def _hit_player(state: GameState, base: int) -> None:
-    """敵人對玩家的一次攻擊。"""
+def enemy_attack_value(state: GameState, base: int) -> int:
+    """敵人一次攻擊在護甲結算前的實際傷害(力量 → 虛弱 -25% 取整 → 玩家易傷 ×1.5)。
+    公開:UI 的意圖顯示與代理的「擋致死」計算共用,確保三處數字一致。"""
     dmg = base + state.enemy.strength
+    if state.enemy.weak > 0:
+        dmg = dmg * 3 // 4
     if state.player.vulnerable > 0:
         dmg = dmg * 3 // 2
+    return dmg
+
+
+def _hit_player(state: GameState, base: int) -> None:
+    """敵人對玩家的一次攻擊。"""
+    dmg = enemy_attack_value(state, base)
     blocked = min(state.player.block, dmg)
     state.player.block -= blocked
     state.player.hp -= dmg - blocked
@@ -124,6 +133,8 @@ def _execute_effect(state: GameState, effect: tuple, choice: str | None) -> None
         e.vulnerable += effect[1]
     elif op == "apply_poison":
         e.poison += effect[1]
+    elif op == "apply_weak":
+        e.weak += effect[1]
     elif op == "gain_strength":
         p.strength += effect[1]
     elif op == "draw":
@@ -260,6 +271,7 @@ def end_turn(state: GameState, enemy_ai=None) -> None:
         _execute_intent(state)
     p.vulnerable = max(0, p.vulnerable - 1)
     e.vulnerable = max(0, e.vulnerable - 1)
+    e.weak = max(0, e.weak - 1)
     if not state.battle_over:
         _start_turn(state)
         if enemy_ai is not None:

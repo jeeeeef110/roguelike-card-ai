@@ -1,4 +1,4 @@
-"""core/cards.py — 26 張卡的資料定義(v2.2 §3.3 定稿 + v2.3 平衡修正)
+"""core/cards.py — 27 張卡的資料定義(v2.2 §3.3 定稿 + v2.3 平衡修正)
 
 本檔只有「資料」:每張卡是一個不可變的 Card(NamedTuple),effects 由
 engine.py 解讀執行。新增卡=新增一筆資料,不改引擎(效果=資料 + 事件鉤子)。
@@ -20,6 +20,7 @@ engine.py 解讀執行。新增卡=新增一筆資料,不改引擎(效果=資料
   ("lift_attack_limit",)               本回合解除攻擊牌張數上限(破限,v2.3)
   ("apply_vulnerable", n)              敵易傷 +n
   ("apply_poison", n)                  敵中毒 +n
+  ("apply_weak", n)                    敵虛弱 +n:攻擊傷害 -25% 取整(痺擊,v2.3)
   ("gain_strength", n)                 力量 +n(該場戰鬥永久)
 
   資源
@@ -118,6 +119,9 @@ _CARD_DEFS: tuple[Card, ...] = (
     # 26 攻擊上限 payoff(v2.3 新增,Jeff 拍板):爆發回合前先付 1 費一張牌
     Card("limit_break", "破限", 1, "skill", "rare",
          (("lift_attack_limit",),)),
+    # 27 防禦向攻擊(v2.3 新增,Jeff 拍板):用輸出換減傷,對抗大招回合
+    Card("numbing_strike", "痺擊", 1, "attack", "common",
+         (("damage", 4), ("apply_weak", 2))),
 )
 
 # 全遊戲唯一的卡牌註冊表:card_id → Card(共享、不可變)

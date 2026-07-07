@@ -1,6 +1,6 @@
 """tests/test_cards.py — 卡牌資料與 v2.2 §3.3 定稿(+v2.3 平衡修正)的一致性:
-1. 26 張、id 唯一、註冊表 key 與 card_id 一致
-2. 起始牌組組成、稀有度分佈(起始 3 / 稀有 7 / 普通 16)照定稿
+1. 27 張、id 唯一、註冊表 key 與 card_id 一致
+2. 起始牌組組成、稀有度分佈(起始 3 / 稀有 7 / 普通 17)照定稿
 3. effects 結構合法(engine 可解讀的 (opcode, *int 參數) 序列)
 4. kind 分類規則:會造成傷害的卡 = attack,其餘 = skill
 """
@@ -20,8 +20,8 @@ DAMAGE_OPS = {
 }
 
 
-def test_exactly_26_cards_with_consistent_ids():
-    assert len(CARDS) == 26
+def test_exactly_27_cards_with_consistent_ids():
+    assert len(CARDS) == 27
     for card_id, card in CARDS.items():
         assert card.card_id == card_id
 
@@ -45,7 +45,7 @@ def test_rarity_distribution_matches_spec():
         "armor_strike", "tactics", "detonate", "flurry", "salvage", "judgment",
         "limit_break",
     }
-    assert len(by_rarity["common"]) == 16
+    assert len(by_rarity["common"]) == 17
     assert set(RARITY_WEIGHTS) == {"common", "rare"}
 
 

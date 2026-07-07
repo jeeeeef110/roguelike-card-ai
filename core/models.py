@@ -93,6 +93,7 @@ class EnemyState:
     __slots__ = (
         "enemy_id", "hp", "max_hp", "block",
         "poison", "vulnerable", "strength",
+        "weak",                           # 虛弱(v2.3):攻擊傷害 -25%,每回合 -1
         "block_persists",                 # 石像兵:護甲不歸零
         "intent", "pattern",
     )
@@ -105,6 +106,7 @@ class EnemyState:
         self.poison = 0
         self.vulnerable = 0
         self.strength = 0
+        self.weak = 0
         self.block_persists = block_persists
         self.intent: tuple = ("none",)
         self.pattern: dict = {}
@@ -118,6 +120,7 @@ class EnemyState:
         c.poison = self.poison
         c.vulnerable = self.vulnerable
         c.strength = self.strength
+        c.weak = self.weak
         c.block_persists = self.block_persists
         c.intent = self.intent            # tuple 不可變,直接共享
         c.pattern = dict(self.pattern)

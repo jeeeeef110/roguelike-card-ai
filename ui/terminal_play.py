@@ -7,7 +7,9 @@ import sys
 
 from core.cards import PLAYER_HP, STARTING_DECK, get_card
 from core.enemies import ENEMIES, enemy_ai, make_enemy
-from core.engine import ATTACK_LIMIT, apply_action, card_cost, start_battle
+from core.engine import (
+    ATTACK_LIMIT, apply_action, card_cost, enemy_attack_value, start_battle,
+)
 from core.models import GameState, PlayerState
 
 ENEMY_NAMES = {"giant_rat": "巨鼠", "poison_spider": "毒蛛", "stone_golem": "石像兵"}
@@ -25,6 +27,7 @@ _EFFECT_TEXT = {
     "lift_attack_limit": "本回合解除攻擊牌張數上限",
     "apply_vulnerable": "敵易傷 {0}",
     "apply_poison": "敵中毒 {0}",
+    "apply_weak": "敵虛弱 {0}(攻擊 -25%)",
     "gain_strength": "力量 +{0}",
     "draw": "抽 {0} 張",
     "gain_energy": "能量 +{0}",
@@ -41,13 +44,17 @@ def card_text(card_id: str) -> str:
     return ";".join(_EFFECT_TEXT[e[0]].format(*e[1:]) for e in card.effects)
 
 
-def intent_text(intent: tuple) -> str:
+def intent_text(s, intent: tuple) -> str:
+    def dmg(base):  # 顯示實際會痛多少(含力量/虛弱/易傷),跟結算同一條公式
+        real = enemy_attack_value(s, base)
+        return f"{base}" if real == base else f"{base}(實際 {real})"
+
     kind = intent[0]
     if kind == "attack":
         times = intent[2] if len(intent) > 2 else 1
-        return f"攻擊 {intent[1]}" + (f" ×{times}" if times > 1 else "")
+        return f"攻擊 {dmg(intent[1])}" + (f" ×{times}" if times > 1 else "")
     if kind == "attack_poison":
-        return f"攻擊 {intent[1]} + 中毒 {intent[2]}"
+        return f"攻擊 {dmg(intent[1])} + 中毒 {intent[2]}"
     if kind == "block":
         return f"護甲 {intent[1]}"
     if kind == "poison":
@@ -67,6 +74,8 @@ def _statuses(unit) -> str:
         parts.append(f"易傷{unit.vulnerable}")
     if unit.poison:
         parts.append(f"中毒{unit.poison}")
+    if getattr(unit, "weak", 0):
+        parts.append(f"虛弱{unit.weak}")
     return " ".join(parts) or "—"
 
 
@@ -79,7 +88,7 @@ def render(s: GameState) -> None:
     print(f"  你     HP {p.hp}/{p.max_hp}  護甲 {p.block}  能量 {p.energy}  "
           f"攻擊 {atk}  狀態:{_statuses(p)}")
     print(f"  {name}   HP {e.hp}/{e.max_hp}  護甲 {e.block}  狀態:{_statuses(e)}")
-    print(f"  敵人意圖:{intent_text(e.intent)}")
+    print(f"  敵人意圖:{intent_text(s, e.intent)}")
     print(f"  牌庫 {len(p.draw_pile)} 張|棄牌堆 {len(p.discard_pile)} 張")
     print("  手牌:")
     for i, cid in enumerate(p.hand, 1):

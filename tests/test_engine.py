@@ -288,6 +288,41 @@ def test_bloodthirst_heals_capped_at_max():
     assert s.player.hp == 70
 
 
+# ---------------------------------------------------------------- 虛弱(v2.3)
+
+
+def test_weak_reduces_enemy_attack_25_percent_floor():
+    s = battle()
+    force_hand(s, ["numbing_strike"])
+    play_card(s, "numbing_strike")     # 傷害 4 + 虛弱 2
+    assert s.enemy.hp == 96
+    assert s.enemy.weak == 2
+    s.enemy.intent = ("attack", 12)
+    end_turn(s)
+    assert s.player.hp == 70 - 9       # 12 ×0.75 = 9
+    assert s.enemy.weak == 1           # 行動後倒數
+
+
+def test_weak_applies_after_strength_floor_rounding():
+    s = battle()
+    s.enemy.strength = 2
+    s.enemy.weak = 1
+    s.enemy.intent = ("attack", 5)     # (5+2) ×0.75 = 5.25 → 5
+    end_turn(s)
+    assert s.player.hp == 70 - 5
+
+
+def test_weak_expires_after_countdown():
+    s = battle()
+    s.enemy.weak = 1
+    s.enemy.intent = ("none",)
+    end_turn(s)
+    assert s.enemy.weak == 0
+    s.enemy.intent = ("attack", 8)
+    end_turn(s)
+    assert s.player.hp == 70 - 8       # 虛弱已過期,全額
+
+
 # ---------------------------------------------------------------- 攻擊上限(v2.3)
 
 
