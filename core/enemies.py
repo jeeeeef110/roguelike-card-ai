@@ -40,6 +40,25 @@ def _poison_spider(state: GameState) -> tuple:
     return ("block", 6)
 
 
+# Boss 數值(平衡實驗 2 定案:目標=有腦代理用起始牌組勝率 25-40%)
+# 原規格 12/(5,3)/每2回合 → 勝率 0%;36 組網格搜尋(各 500 場)後取
+# 「保留 HP 90 與二階段 5×3、只軟化重擊與狂暴節奏」的組合 → 27.8%
+BOSS_P1_ATTACK = 9        # 一階段:單次重擊(原 12)
+BOSS_P2_ATTACK = (5, 3)   # 二階段:(單發, 次數)
+BOSS_ENRAGE_EVERY = 3     # 每 N 回合力量 +1(原 2)
+
+
+def _corrupted_knight(state: GameState) -> tuple:
+    """Boss 腐化騎士:狂暴計時(反龜縮)+ 雙階段
+    (HP<50%:單次重擊 → 3 連擊;重擊怕高甲、連擊怕易傷/虛弱)。"""
+    e = state.enemy
+    if state.turn % BOSS_ENRAGE_EVERY == 0:
+        e.strength += 1
+    if e.hp * 2 < e.max_hp:
+        return ("attack", *BOSS_P2_ATTACK)
+    return ("attack", BOSS_P1_ATTACK)
+
+
 def _stone_golem(state: GameState) -> tuple:
     """石像兵:固定循環 甲8 → 攻9 → 攻9;被動每回合 +3 甲、護甲不歸零。"""
     e = state.enemy
@@ -55,6 +74,7 @@ ENEMIES: dict[str, tuple[int, bool, object]] = {
     "giant_rat": (42, False, _giant_rat),
     "poison_spider": (33, False, _poison_spider),
     "stone_golem": (60, True, _stone_golem),
+    "corrupted_knight": (90, False, _corrupted_knight),  # Boss
 }
 
 

@@ -12,7 +12,8 @@ from core.engine import (
 )
 from core.models import GameState, PlayerState
 
-ENEMY_NAMES = {"giant_rat": "巨鼠", "poison_spider": "毒蛛", "stone_golem": "石像兵"}
+ENEMY_NAMES = {"giant_rat": "巨鼠", "poison_spider": "毒蛛",
+               "stone_golem": "石像兵", "corrupted_knight": "腐化騎士(Boss)"}
 
 _EFFECT_TEXT = {
     "damage": "傷害 {0}",
@@ -127,7 +128,8 @@ def main() -> None:
         for i, eid in enumerate(ids, 1):
             print(f"  {i}. {ENEMY_NAMES[eid]}(HP {make_enemy(eid).max_hp})")
         raw = input("挑一隻對手 > ").strip()
-        enemy_id = ids[int(raw) - 1] if raw.isdigit() and 1 <= int(raw) <= 3 else ids[0]
+        enemy_id = (ids[int(raw) - 1]
+                    if raw.isdigit() and 1 <= int(raw) <= len(ids) else ids[0])
     seed = int(args[1]) if len(args) > 1 else 0
 
     p = PlayerState(hp=PLAYER_HP, max_hp=PLAYER_HP, deck=list(STARTING_DECK))
