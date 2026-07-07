@@ -40,6 +40,7 @@ class PlayerState:
         "next_energy_delta",              # 蓄勢 +2 / 透支 -1,下回合開始時結算後歸零
         "attack_cost_delta",              # 織網:本回合攻擊卡費用修正,回合結束歸零
         "attacks_played",                 # 撕裂:本回合已出攻擊卡數,回合結束歸零
+        "attack_limit_off",               # 破限:本回合解除攻擊張數上限,回合結束歸零
     )
 
     def __init__(self, hp: int, max_hp: int, deck: list[str], base_energy: int = 3):
@@ -58,6 +59,7 @@ class PlayerState:
         self.next_energy_delta = 0
         self.attack_cost_delta = 0
         self.attacks_played = 0
+        self.attack_limit_off = False
 
     def clone(self) -> "PlayerState":
         c = PlayerState.__new__(PlayerState)
@@ -76,6 +78,7 @@ class PlayerState:
         c.next_energy_delta = self.next_energy_delta
         c.attack_cost_delta = self.attack_cost_delta
         c.attacks_played = self.attacks_played
+        c.attack_limit_off = self.attack_limit_off
         return c
 
 

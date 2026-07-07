@@ -5,9 +5,9 @@
 """
 import sys
 
-from core.cards import STARTING_DECK, get_card
+from core.cards import PLAYER_HP, STARTING_DECK, get_card
 from core.enemies import ENEMIES, enemy_ai, make_enemy
-from core.engine import apply_action, card_cost, legal_actions, start_battle
+from core.engine import ATTACK_LIMIT, apply_action, card_cost, start_battle
 from core.models import GameState, PlayerState
 
 ENEMY_NAMES = {"giant_rat": "巨鼠", "poison_spider": "毒蛛", "stone_golem": "石像兵"}
@@ -22,6 +22,7 @@ _EFFECT_TEXT = {
     "detonate_poison": "造成中毒層數 ×{0} 傷害,清空中毒",
     "block": "護甲 {0}",
     "retain_block": "本回合結束護甲不歸零",
+    "lift_attack_limit": "本回合解除攻擊牌張數上限",
     "apply_vulnerable": "敵易傷 {0}",
     "apply_poison": "敵中毒 {0}",
     "gain_strength": "力量 +{0}",
@@ -72,9 +73,11 @@ def _statuses(unit) -> str:
 def render(s: GameState) -> None:
     p, e = s.player, s.enemy
     name = ENEMY_NAMES[e.enemy_id]
+    atk = ("∞(已破限)" if p.attack_limit_off
+           else f"{p.attacks_played}/{ATTACK_LIMIT}")
     print(f"\n════ 回合 {s.turn} ════")
     print(f"  你     HP {p.hp}/{p.max_hp}  護甲 {p.block}  能量 {p.energy}  "
-          f"狀態:{_statuses(p)}")
+          f"攻擊 {atk}  狀態:{_statuses(p)}")
     print(f"  {name}   HP {e.hp}/{e.max_hp}  護甲 {e.block}  狀態:{_statuses(e)}")
     print(f"  敵人意圖:{intent_text(e.intent)}")
     print(f"  牌庫 {len(p.draw_pile)} 張|棄牌堆 {len(p.discard_pile)} 張")
@@ -118,7 +121,7 @@ def main() -> None:
         enemy_id = ids[int(raw) - 1] if raw.isdigit() and 1 <= int(raw) <= 3 else ids[0]
     seed = int(args[1]) if len(args) > 1 else 0
 
-    p = PlayerState(hp=70, max_hp=70, deck=list(STARTING_DECK))
+    p = PlayerState(hp=PLAYER_HP, max_hp=PLAYER_HP, deck=list(STARTING_DECK))
     s = GameState(p, make_enemy(enemy_id), seed=seed)
     start_battle(s, enemy_ai)
     print(f"\n⚔  遭遇 {ENEMY_NAMES[enemy_id]}!(seed={seed})"
@@ -144,7 +147,10 @@ def main() -> None:
         needs_choice = any(e[0].endswith("_choose")
                            for e in get_card(card_id).effects)
         choice = _pick_choice(s, card_id) if needs_choice else None
-        apply_action(s, ("play", card_id, choice))
+        try:
+            apply_action(s, ("play", card_id, choice))
+        except ValueError as err:  # 攻擊上限等規則擋下
+            print(f"  {err}")
 
     print("\n" + ("🎉 勝利!" if s.player_won else "💀 你倒下了…") +
           f"  (你 HP {max(s.player.hp, 0)} / {ENEMY_NAMES[enemy_id]} "

@@ -1,4 +1,4 @@
-"""core/cards.py — 25 張卡的資料定義(v2.2 §3.3 定稿)
+"""core/cards.py — 26 張卡的資料定義(v2.2 §3.3 定稿 + v2.3 平衡修正)
 
 本檔只有「資料」:每張卡是一個不可變的 Card(NamedTuple),effects 由
 engine.py 解讀執行。新增卡=新增一筆資料,不改引擎(效果=資料 + 事件鉤子)。
@@ -17,6 +17,7 @@ engine.py 解讀執行。新增卡=新增一筆資料,不改引擎(效果=資料
   防禦與狀態
   ("block", n)                         獲得護甲 n
   ("retain_block",)                    本回合結束護甲不歸零(堅守)
+  ("lift_attack_limit",)               本回合解除攻擊牌張數上限(破限,v2.3)
   ("apply_vulnerable", n)              敵易傷 +n
   ("apply_poison", n)                  敵中毒 +n
   ("gain_strength", n)                 力量 +n(該場戰鬥永久)
@@ -114,6 +115,9 @@ _CARD_DEFS: tuple[Card, ...] = (
     # 25 續戰:搶血 vs 換血
     Card("bloodthirst", "飲血", 2, "attack", "common",
          (("damage", 8), ("heal", 3))),
+    # 26 攻擊上限 payoff(v2.3 新增,Jeff 拍板):爆發回合前先付 1 費一張牌
+    Card("limit_break", "破限", 1, "skill", "rare",
+         (("lift_attack_limit",),)),
 )
 
 # 全遊戲唯一的卡牌註冊表:card_id → Card(共享、不可變)
@@ -121,6 +125,9 @@ CARDS: dict[str, Card] = {c.card_id: c for c in _CARD_DEFS}
 
 # v2.2 §3.3:起始牌組 打擊 ×5、防禦 ×4、狂暴 ×1
 STARTING_DECK: list[str] = ["strike"] * 5 + ["defend"] * 4 + ["rampage"]
+
+# v2.3 平衡修正:玩家起始 HP(遠低於 Boss 90,一般戰失誤 2-3 次即有壓力)
+PLAYER_HP: int = 50
 
 # v2.2 §3.5:獎勵抽卡權重(起始卡不進獎勵池)
 RARITY_WEIGHTS: dict[str, int] = {"common": 3, "rare": 1}

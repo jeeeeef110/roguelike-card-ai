@@ -14,7 +14,8 @@ Action 格式:
     ("play", card_id, choice_id)     出需要選擇的牌(充能=棄誰 / 回收=撿誰)
     ("end_turn",)                    結束回合
 
-規則定案(v2.2 §3 + 2026-07-07 決策):
+規則定案(v2.2 §3 + 2026-07-07 決策 + v2.3 平衡修正):
+- 攻擊上限:每回合最多出 ATTACK_LIMIT 張攻擊卡,「破限」解除當回合上限
 - 傷害管線:基礎值 → +力量(逐次攻擊各加成)→ 易傷 ×1.5 向下取整 → 護甲抵銷
 - 中毒:玩家回合開始結算雙方,無視護甲、不吃易傷加成,層數 -1
 - 引爆:純轉換——不吃力量、不吃易傷、可被護甲抵擋(毒的 tick 穿甲、引爆不穿)
@@ -27,6 +28,9 @@ Action 格式:
 """
 from core.cards import get_card
 from core.models import GameState
+
+# v2.3 平衡修正(Jeff 拍板):每回合最多出 3 張攻擊卡,「破限」可解除當回合上限
+ATTACK_LIMIT = 3
 
 # ---------------------------------------------------------------- 傷害管線
 
@@ -114,6 +118,8 @@ def _execute_effect(state: GameState, effect: tuple, choice: str | None) -> None
         p.block += effect[1]
     elif op == "retain_block":
         p.block_retain = True
+    elif op == "lift_attack_limit":
+        p.attack_limit_off = True
     elif op == "apply_vulnerable":
         e.vulnerable += effect[1]
     elif op == "apply_poison":
@@ -164,6 +170,9 @@ def play_card(state: GameState, card_id: str, choice: str | None = None) -> None
     if p.energy < cost:
         raise ValueError(f"能量不足:{card_id} 需要 {cost},只有 {p.energy}")
     card = get_card(card_id)
+    if (card.kind == "attack" and p.attacks_played >= ATTACK_LIMIT
+            and not p.attack_limit_off):
+        raise ValueError(f"本回合攻擊卡已達上限 {ATTACK_LIMIT} 張(破限可解除)")
     p.energy -= cost
     p.hand.remove(card_id)  # 先離手:充能不能棄自己、回收不能撿到自己
     for effect in card.effects:
@@ -243,6 +252,7 @@ def end_turn(state: GameState, enemy_ai=None) -> None:
     p.discard_pile.extend(p.hand)
     p.hand = []
     p.attacks_played = 0
+    p.attack_limit_off = False
     p.attack_cost_delta = 0  # 先清,織網若在下面執行會重新設上 → 效果落在下回合
     if not e.block_persists:
         e.block = 0
@@ -266,10 +276,13 @@ def legal_actions(state: GameState) -> list[tuple]:
     p = state.player
     actions: list[tuple] = []
     seen: set[tuple] = set()
+    at_limit = p.attacks_played >= ATTACK_LIMIT and not p.attack_limit_off
     for card_id in p.hand:
         if p.energy < card_cost(state, card_id):
             continue
         card = get_card(card_id)
+        if card.kind == "attack" and at_limit:
+            continue
         needs_choice = any(e[0].endswith("_choose") for e in card.effects)
         if not needs_choice:
             a = ("play", card_id)

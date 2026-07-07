@@ -288,6 +288,47 @@ def test_bloodthirst_heals_capped_at_max():
     assert s.player.hp == 70
 
 
+# ---------------------------------------------------------------- 攻擊上限(v2.3)
+
+
+def test_fourth_attack_blocked_by_limit():
+    s = battle()
+    force_hand(s, ["rampage", "rampage", "rampage", "strike"])
+    for _ in range(3):
+        play_card(s, "rampage")        # 0 費攻擊 ×3,達上限
+    with pytest.raises(ValueError):
+        play_card(s, "strike")
+
+
+def test_limit_excludes_attacks_from_legal_actions_but_not_skills():
+    s = battle()
+    s.player.attacks_played = 3
+    force_hand(s, ["strike", "defend"])
+    acts = legal_actions(s)
+    assert ("play", "strike") not in acts
+    assert ("play", "defend") in acts
+
+
+def test_limit_break_lifts_cap_this_turn_only():
+    s = battle()
+    s.player.attacks_played = 3
+    force_hand(s, ["limit_break", "strike"])
+    play_card(s, "limit_break")
+    play_card(s, "strike")             # 第 4 張攻擊:破限後合法
+    assert s.enemy.hp == 94
+    end_turn(s)
+    assert s.player.attack_limit_off is False  # 只管本回合
+
+
+def test_limit_resets_next_turn():
+    s = battle()
+    s.player.attacks_played = 3
+    end_turn(s)
+    assert s.player.attacks_played == 0
+    force_hand(s, ["strike"])
+    play_card(s, "strike")             # 新回合正常出攻擊
+
+
 # ---------------------------------------------------------------- 代理接口與勝負
 
 
