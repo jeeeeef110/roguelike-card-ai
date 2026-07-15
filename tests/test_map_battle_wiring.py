@@ -14,6 +14,7 @@ import pytest  # noqa: E402
 from core.potions import POTIONS  # noqa: E402
 from core.run import GOLD_PER_WIN, RunState, next_choices  # noqa: E402
 from ui.battle_scene import BattleScene  # noqa: E402
+from ui.choice_panel import ChoicePanel  # noqa: E402
 from ui.map_scene import MapScene  # noqa: E402
 from ui.scenes import Director  # noqa: E402
 
@@ -53,6 +54,25 @@ def _enter_first_battle(s):
     return target
 
 
+def _drain_panels(s, pick_first=False):
+    """收掉 U5 抉擇面板:預設點跳過/離開,無跳過鈕則點第一個可選項。
+    pick_first=True 時獎勵面板也拿第一張(對齊舊的 headless 佔位策略)。"""
+    d = s.director
+    for _ in range(6):
+        if not isinstance(d.scene, ChoicePanel):
+            return
+        p = d.scene
+        if p.skip_label and not pick_first:
+            pos = p._skip_rect.center
+        else:
+            enabled = [o for o in p.options if o.enabled]
+            pos = p._rect_of(enabled[0]).center if enabled \
+                else p._skip_rect.center
+        d.handle(pygame.event.Event(pygame.MOUSEBUTTONDOWN,
+                                    {"pos": pos, "button": 1}))
+        _settle(s, 1.8)
+
+
 def test_battle_node_pushes_battle_scene_with_spawned_enemy():
     s = _scene()
     target = _enter_first_battle(s)
@@ -72,8 +92,11 @@ def test_win_flows_back_to_map_with_rewards_and_gold():
     assert s.run.position == target
     assert s.run.hp == 37                    # hp_left 寫回 run
     assert s.run.gold == GOLD_PER_WIN
-    assert len(s.run.deck) == deck0 + 1      # 獎勵自動拿一張(U3 佔位)
-    _settle(s, 1.6)                          # pop fade + 鏡頭拉回
+    _settle(s, 1.0)                          # 獎勵面板(U5)滑入
+    assert isinstance(s.director.scene, ChoicePanel)
+    _drain_panels(s, pick_first=True)        # 拿第一張
+    assert len(s.run.deck) == deck0 + 1
+    _settle(s, 1.0)                          # 鏡頭拉回
     assert s.director.scene is s and not s.busy
     assert s.walked == [(target.layer, target.index)]
 
@@ -98,7 +121,9 @@ def test_potions_ride_into_battle_and_back():
     assert bs.s.player.potions == [pid]      # 藥水進場
     bs.s.player.potions.clear()              # 模擬戰鬥中喝掉
     bs.on_finish(True, 40)
-    assert s.run.potions == []               # 戰後寫回剩餘
+    assert s.run.potions == []               # 戰後寫回剩餘(先於獎勵面板)
+    _settle(s, 1.0)
+    _drain_panels(s)
 
 
 def test_full_interactive_run_via_ui_clicks():
@@ -137,7 +162,9 @@ def test_full_interactive_run_via_ui_clicks():
                 _settle(s, 0.45)
             d.handle(pygame.event.Event(pygame.MOUSEBUTTONDOWN,
                                         {"pos": (480, 270), "button": 1}))
-            _settle(s, 1.6)                  # pop fade + 鏡頭拉回
+            _settle(s, 1.6)                  # pop fade + 獎勵面板/鏡頭拉回
+        _drain_panels(s)                     # 收掉 U5 面板(獎勵/休息/商店/事件)
+        _settle(s, 1.0)
     assert s.run.over                        # 勝敗皆可,流程必須走得完
     assert s.outcome in ("victory", "defeated")
     assert len(s.run.floor_log) == len(s.walked)

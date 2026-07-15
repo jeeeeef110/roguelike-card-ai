@@ -4,10 +4,10 @@
 走過的路徑亮中性光。點擊可走節點 → 鏡頭推近(zoom 1→1.6, 0.7s)→
 經 core 公開 API 結算 → 鏡頭拉回。UI 內不含任何遊戲規則(鐵律)。
 
-U3 佔位(U4/U5 換掉,美術素材 U4 前禁用):
-- 節點=色塊圓(型別用流派色區分,icon 之後才上)
-- 戰鬥結果由注入的 battle_hook 決定(demo 用自動勝 stub)
-- 獎勵自動拿第一張、休息自動回血、商店/事件路過(U5 接抉擇面板)
+節點結算:戰鬥推 BattleScene(U4)、獎勵/休息/商店/事件推抉擇面板
+(U5,見 ui/choice_scenes.py);給定 battle_hook 時全部同步結算
+(headless 測試/模擬用,不開任何場景)。
+佔位:節點=色塊圓(icon U4 美術階段才上);藥水掉落自動撿、滿則放棄。
 
 效能:發光走 ui.glow 烘焙快取——呼吸亮度與縮放半徑都做量化
 (亮度 8 階、半徑步進 2),快取鍵有界,不隨動畫幀數膨脹;
@@ -25,6 +25,7 @@ from core.models import GameState, PlayerState
 from core.run import (RunState, enter_node, next_choices, rest_heal,
                       spawn_enemy, take_potion, take_reward)
 from ui.battle_scene import BattleScene
+from ui.choice_scenes import open_node_result
 from ui.glow import glow_circle
 from ui.scenes import BG, Scene
 from ui.text import draw_text
@@ -152,18 +153,27 @@ class MapScene(Scene):
                            transition="fade")
 
     def _after_enter(self, node, out: dict):
-        """enter_node 之後的共同收尾(U3 佔位策略見模組說明)。"""
+        """enter_node 之後:掉落自動撿(藥水滿則放棄,U6 再做替換 UI)。
+        互動模式:玩家抉擇交給抉擇面板(U5),收完呼叫 _finish_node;
+        headless 模式(有 battle_hook):維持同步佔位策略,不開場景。"""
         self.walked.append((node.layer, node.index))
-        if "rewards" in out:
-            take_reward(self.run, out["rewards"], out["rewards"][0])
         if "potion_drop" in out:
             take_potion(self.run, out["potion_drop"])
-        if "rest_options" in out:
-            rest_heal(self.run)
         if out.get("victory"):
             self.outcome = "victory"
         elif out.get("defeated"):
             self.outcome = "defeated"
+        if self.battle_hook is not None:      # headless:獎勵拿第一張、必回血
+            if "rewards" in out:
+                take_reward(self.run, out["rewards"], out["rewards"][0])
+            if "rest_options" in out:
+                rest_heal(self.run)
+            self._finish_node()
+        else:
+            open_node_result(self, node, out, self._finish_node)
+
+    def _finish_node(self):
+        """節點完全結束:鏡頭拉回、解鎖輸入。"""
         cam, tm = self.director.camera, self.director.tweens
         fx, fy = self._focus_point()
         tm.add(Tween(cam, "x", cam.x, fx, CAM_SECS))
