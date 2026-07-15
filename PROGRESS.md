@@ -293,6 +293,11 @@ heuristic@500 追平 Expectimax(98%)。待辦 #2 歸因確定:主因是
 ## 已知問題
 - shop_buy_card 不驗證 card_id 是否為本次商店提供的那張(信任呼叫端)——
   UI 接上時記得只把商店 offer 的卡傳進來
+- (已修 2026-07-15)Jeff 實測閃退:ENEMY_NAMES/intent_text 缺第二波
+  新敵人(吸血蝠/狂戰士),菁英戰開場 KeyError。修正 + 完整性鎖測試
+  (test_every_enemy_renders_with_name_and_intent_text:每隻敵人
+  UI 畫得出來、每個意圖有文案)。教訓:內容表(敵人/卡/意圖)新增時,
+  表現層對照表要有測試強制同步,不能靠記憶
 - 升級卡的「二次升級」(如 bash_s_s)走 events 的延遲註冊:同行程可用,
   但存檔跨行程讀回不保證存在。MVP 建議限制每張卡只能鍛造一次,
   或存檔系統上線時把二階 id 一併預註冊

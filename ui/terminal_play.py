@@ -13,7 +13,9 @@ from core.engine import (
 from core.models import GameState, PlayerState
 
 ENEMY_NAMES = {"giant_rat": "巨鼠", "poison_spider": "毒蛛",
-               "stone_golem": "石像兵", "corrupted_knight": "腐化騎士(Boss)"}
+               "stone_golem": "石像兵", "blood_bat": "吸血蝠",
+               "berserker": "狂戰士",
+               "corrupted_knight": "腐化騎士(Boss)"}
 
 _EFFECT_TEXT = {
     "damage": "傷害 {0}",
@@ -56,6 +58,8 @@ def intent_text(s, intent: tuple) -> str:
         return f"攻擊 {dmg(intent[1])}" + (f" ×{times}" if times > 1 else "")
     if kind == "attack_poison":
         return f"攻擊 {dmg(intent[1])} + 中毒 {intent[2]}"
+    if kind == "attack_lifesteal":
+        return f"攻擊 {dmg(intent[1])}(造成多少實傷就回多少血)"
     if kind == "block":
         return f"護甲 {intent[1]}"
     if kind == "poison":

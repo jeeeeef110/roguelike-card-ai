@@ -13,8 +13,8 @@ import pytest  # noqa: E402
 
 from agents.rule_based import RuleBasedAgent  # noqa: E402
 from core.cards import PLAYER_HP, STARTING_DECK  # noqa: E402
-from core.enemies import enemy_ai, make_enemy  # noqa: E402
-from core.engine import start_battle  # noqa: E402
+from core.enemies import ENEMIES, enemy_ai, make_enemy  # noqa: E402
+from core.engine import apply_action, start_battle  # noqa: E402
 from core.models import GameState, PlayerState  # noqa: E402
 from ui.battle_scene import END_TURN_RECT, BattleScene  # noqa: E402
 from ui.scenes import Director  # noqa: E402
@@ -137,6 +137,29 @@ def test_full_battle_win_vs_giant_rat_via_ui_clicks():
     _settle(sc, 0.1)
     _click(sc, (480, 270))                     # 結算畫面點擊 → on_finish
     assert results == [(True, sc.s.player.hp)]
+
+
+# ------------------------------------------------------------ 完整性鎖
+
+def test_every_enemy_renders_with_name_and_intent_text():
+    """新增敵人時,UI 對照表(名字/意圖文案)必須同步更新——
+    2026-07-15 吸血蝠/狂戰士漏更新,菁英戰一開場就 KeyError 閃退。
+    對每一隻敵人:BattleScene 畫得出來、每個意圖都有文案。"""
+    from ui.terminal_play import ENEMY_NAMES, intent_text
+
+    agent = RuleBasedAgent()
+    for eid in ENEMIES:
+        assert eid in ENEMY_NAMES, f"{eid} 沒有中文名"
+        sc = _battle(eid, seed=1)               # 內含 draw 一幀
+        s = sc.s
+        for _ in range(60):
+            if s.battle_over:
+                break
+            if s.enemy.intent[0] != "none":
+                assert intent_text(s, s.enemy.intent) != "無動作", \
+                    f"{eid} 的意圖 {s.enemy.intent} 沒有文案"
+            apply_action(s, agent.choose_action(s), enemy_ai)
+        sc.draw(pygame.display.get_surface())   # 戰鬥中後期也畫一幀
 
 
 # ------------------------------------------------------------ 效能
