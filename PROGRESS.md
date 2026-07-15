@@ -1,5 +1,5 @@
 # PROGRESS
-更新日期:2026-07-15(PC 恢復:U2 + U3 完成——glow/scenes/MapScene,60fps 驗收門全過)
+更新日期:2026-07-15(PC 恢復:U2 + U3 + U4 主體完成——UI 五模組,驗收門全過)
 
 ## 已完成
 ### 第一階段(core + 三版代理 + 模擬器)— 2026-07-07 完成
@@ -115,6 +115,26 @@
 - 測試 198/198(新增 test_map_scene 8 項:透視佈局、呼吸範圍與錯相、
   點擊行走、busy 忽略輸入、完整走圖、快取有界、60fps)
 
+### UI U4 BattleScene 主體(2026-07-15,同日)
+- [ui/text.py] 文字快取渲染(A5 守則):key=(字串,字級,顏色,粗體),
+  上限 512 條超過整批清空;SysFont 找思源黑體/蘋方,CJK 正常
+- [ui/widgets.py] SmoothBar(「血條永不瞬降」:set() 下 300ms tween,
+  護甲=條外藍描邊)+ FloatTextLayer(傷害數字上飄淡出;持有 Surface
+  複本,動 alpha 不污染共享文字快取)
+- [ui/battle_scene.py] 戰鬥場景色塊版(A3.2):規則零重複——合法性/
+  費用/結算全問 engine(legal_actions/apply_action/card_cost),文案
+  複用 terminal_play 的 intent_text/card_text(同一套翻譯兩個前端)。
+  意圖 ease_out_back 彈入、出牌色塊卡飛向目標 0.25s(飛行中鎖輸入)、
+  受擊閃白 2 幀、傷害/護甲飄字、hover 上浮 20px、不可出牌灰框、
+  結算 overlay 點擊 → on_finish(win, hp_left)(U5 給 MapScene 接)
+- [ui/demo_battle.py] 手動對戰 demo:`python3 -m ui.demo_battle [敵人] [seed]`
+- **U4 驗收門通過**:規則式代理決策+UI 點擊路徑打贏巨鼠
+  (test_full_battle_win_vs_giant_rat_via_ui_clicks);>55fps
+- U4 佔位待補(記在待辦):藥水槽、MCTS 建議開關、Boss 二階段演出
+  (暗化+鏡頭震)、_choose 卡的選擇面板(現自動選第一個合法對象)、
+  MapScene battle_hook 接 BattleScene(換掉自動勝 stub)
+- 測試 215/215(新增 test_ui_widgets 10 + test_battle_scene 7)
+
 ## A/B 對照紀錄(新增)
 ### 實驗 3(2026-07-08):MCTS rollout policy × iterations
 石像兵(100 場):random@200 剩HP 23.5 → heuristic@200 **30.7**(追平代差:
@@ -185,10 +205,10 @@ heuristic@500 追平 Expectimax(98%)。待辦 #2 歸因確定:主因是
 ## 待辦(依優先序,PC 恢復後)
 1. W5-6:Pygame UI——照 docs/UI視覺規格與格子戰鬥提案.md 的 A 部執行
    (「暗夜光網」;U4 前禁用美術素材;一開始就用 Pygbag 相容寫法)。
-   **U1、U2、U3 已完成(tween/camera/glow/scenes/map_scene 全綠)**:
-   下一步 U4 BattleScene(手動打贏巨鼠;所有數值變化皆有動畫;
-   意圖 ease_out_back 彈入、血條 300ms 滑動、傷害數字上飄;
-   battle_hook 接進 MapScene 換掉自動勝 stub;文字 Surface 快取)
+   **U1–U4 主體完成(tween/camera/glow/scenes/map_scene/text/widgets/
+   battle_scene 全綠)**:下一步 U4 收尾接線——MapScene 的 battle_hook
+   改推 BattleScene(戰鬥前捕捉結果、回頭餵 enter_node),換掉自動勝
+   stub 後即可從地圖一路手動打到 Boss;再進 U5 五個抉擇場景
 2. 矩陣定稿:expectimax/mcts 各格 n≥200 重跑(沙盒僅 50 場,±7%);
    節奏流×expectimax 需先做搜尋剪枝(見 4)才可能量得完
 3. MCTS 反甲流殘差:rollout 加入「等待/疊甲節奏」規則或 payoff 先驗,
