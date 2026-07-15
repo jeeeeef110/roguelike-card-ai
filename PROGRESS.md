@@ -1,5 +1,5 @@
 # PROGRESS
-更新日期:2026-07-15(PC 恢復:U2 完成——glow.py + scenes.py,兩道 60fps 驗收門皆過)
+更新日期:2026-07-15(PC 恢復:U2 + U3 完成——glow/scenes/MapScene,60fps 驗收門全過)
 
 ## 已完成
 ### 第一階段(core + 三版代理 + 模擬器)— 2026-07-07 完成
@@ -99,6 +99,22 @@
 - 命名對照:規格 A2.3 的 Camera 即既有 ui/camera.py(U1 已完成),
   scenes.py 直接 import,不重複實作
 
+### UI U3 MapScene(2026-07-15,同日)
+- [ui/map_scene.py] 地圖場景色塊版(A3.1):分層 DAG 透視佈局(每層 x 間距
+  壓縮 7%、y 遞減)、可走節點呼吸閃爍(亮度 0.6↔1.0/1.8s/錯相)、
+  走過路徑亮中性光、待機 ±1px 漂浮;點擊 → 鏡頭推近(zoom 1.6/0.7s)→
+  core 三段式結算 → 拉回;戰鬥由注入的 battle_hook 決定
+- 效能設計:呼吸亮度 8 階量化 + 半徑步進 2 → glow 快取鍵有界
+  (測試鎖定 <600 張);邊用普通線(glow_line 鍵含位移量,縮放會撐爆快取)
+- U3 佔位(U4/U5 換掉):獎勵自動拿第一張、休息自動回血、商店/事件路過、
+  節點用流派色色塊(icon U4 才上)
+- [ui/demo_map.py] 互動 demo:`python3 -m ui.demo_map [seed]`,
+  Pygbag 相容 async 主迴圈(A5:一開始就這樣寫)
+- **U3 驗收門通過**:headless 模擬點擊完整走完一輪地圖到 Boss 勝利
+  (test_full_walk_reaches_boss_and_victory);MapScene 繪製 >55fps
+- 測試 198/198(新增 test_map_scene 8 項:透視佈局、呼吸範圍與錯相、
+  點擊行走、busy 忽略輸入、完整走圖、快取有界、60fps)
+
 ## A/B 對照紀錄(新增)
 ### 實驗 3(2026-07-08):MCTS rollout policy × iterations
 石像兵(100 場):random@200 剩HP 23.5 → heuristic@200 **30.7**(追平代差:
@@ -169,8 +185,10 @@ heuristic@500 追平 Expectimax(98%)。待辦 #2 歸因確定:主因是
 ## 待辦(依優先序,PC 恢復後)
 1. W5-6:Pygame UI——照 docs/UI視覺規格與格子戰鬥提案.md 的 A 部執行
    (「暗夜光網」;U4 前禁用美術素材;一開始就用 Pygbag 相容寫法)。
-   **U1、U2 已完成(tween/camera/glow/scenes 全綠)**:下一步 U3 MapScene
-   (色塊版,戰鬥先用自動勝 stub;主迴圈記得 Pygbag async 寫法)
+   **U1、U2、U3 已完成(tween/camera/glow/scenes/map_scene 全綠)**:
+   下一步 U4 BattleScene(手動打贏巨鼠;所有數值變化皆有動畫;
+   意圖 ease_out_back 彈入、血條 300ms 滑動、傷害數字上飄;
+   battle_hook 接進 MapScene 換掉自動勝 stub;文字 Surface 快取)
 2. 矩陣定稿:expectimax/mcts 各格 n≥200 重跑(沙盒僅 50 場,±7%);
    節奏流×expectimax 需先做搜尋剪枝(見 4)才可能量得完
 3. MCTS 反甲流殘差:rollout 加入「等待/疊甲節奏」規則或 payoff 先驗,
