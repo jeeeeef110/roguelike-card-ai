@@ -1,5 +1,5 @@
 # PROGRESS
-更新日期:2026-07-08(沙盒衝刺:MCTS 調參 + build 矩陣 + M2 headless 全部完成)
+更新日期:2026-07-15(PC 恢復:U2 完成——glow.py + scenes.py,兩道 60fps 驗收門皆過)
 
 ## 已完成
 ### 第一階段(core + 三版代理 + 模擬器)— 2026-07-07 完成
@@ -79,6 +79,26 @@
 - **U1 驗收門通過**;U2 剩餘(glow.py、scenes.py 繪製層)需 pygame → PC 首日:
   `pip install pygame`,寫 glow/scenes 時 tween 與 camera 直接可用
 
+### UI U2 繪製層(2026-07-15,PC 恢復首日;pygame 2.6.1)
+- [ui/glow.py] 發光渲染:同心多層遞增亮度烘焙成黑底 Surface,
+  BLEND_RGB_ADD 整張 blit(黑=加零,光源疊加自然累加=bloom 視覺);
+  圓與線段皆走快取(地圖邊靜態 → 位移量當 key 反覆命中);
+  層數上限 4(A5 白爆守則)硬夾在 bake 端
+- **A2.2 效能驗收門通過**:200 節點 + 220 邊滿載,dummy driver 軟體 blit
+  實測 556 fps(門檻 55,約 9 倍餘裕);快取 186 張烘焙面
+- 測試 177/177(新增 test_glow 10 項:快取同一性、層數上限、加法疊亮、
+  光暈亮度梯度、出界安全、60fps 驗收)
+- [ui/scenes.py] Scene 基類(on_enter/on_exit/handle/update/draw)+
+  Director(場景堆疊、共用 TweenManager 與 Camera):fade 轉場
+  (淡入底色遮罩→中點交接堆疊→淡出,0.5s)、pan 轉場(雙場景水平
+  滑動交接,0.7s,pop 反向)、transition=None 直切;轉場期間輸入阻擋、
+  進場者 update 先跑(待機動畫不等轉場結束);連續轉場=前一發立即結清
+- **U2 驗收門通過**:空場景 fade/pan 連續切換 fps>55(dummy driver 實測遠超)
+- 測試 190/190(新增 test_scenes 13 項:生命週期、中點交接語義、
+  輸入阻擋、pan 雙場景可見性、pop 反向、60fps 驗收)
+- 命名對照:規格 A2.3 的 Camera 即既有 ui/camera.py(U1 已完成),
+  scenes.py 直接 import,不重複實作
+
 ## A/B 對照紀錄(新增)
 ### 實驗 3(2026-07-08):MCTS rollout policy × iterations
 石像兵(100 場):random@200 剩HP 23.5 → heuristic@200 **30.7**(追平代差:
@@ -149,8 +169,8 @@ heuristic@500 追平 Expectimax(98%)。待辦 #2 歸因確定:主因是
 ## 待辦(依優先序,PC 恢復後)
 1. W5-6:Pygame UI——照 docs/UI視覺規格與格子戰鬥提案.md 的 A 部執行
    (「暗夜光網」;U4 前禁用美術素材;一開始就用 Pygbag 相容寫法)。
-   **U1 已完成、U2 完成一半(tween/camera 綠燈)**:PC 首日裝 pygame 後
-   從 glow.py 接手,再 scenes.py,然後 U3 MapScene
+   **U1、U2 已完成(tween/camera/glow/scenes 全綠)**:下一步 U3 MapScene
+   (色塊版,戰鬥先用自動勝 stub;主迴圈記得 Pygbag async 寫法)
 2. 矩陣定稿:expectimax/mcts 各格 n≥200 重跑(沙盒僅 50 場,±7%);
    節奏流×expectimax 需先做搜尋剪枝(見 4)才可能量得完
 3. MCTS 反甲流殘差:rollout 加入「等待/疊甲節奏」規則或 payoff 先驗,
