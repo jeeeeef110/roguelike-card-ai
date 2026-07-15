@@ -21,9 +21,8 @@ NEON = (61, 255, 158)     # 毒 #3DFF9E
 @pytest.fixture(scope="module")
 def screen():
     pygame.init()
-    surf = pygame.display.set_mode((960, 540))
-    yield surf
-    pygame.quit()
+    yield pygame.display.set_mode((960, 540))
+    # quit 統一在 conftest(session 結束);模組內 quit 會讓字體快取懸空
 
 
 @pytest.fixture(autouse=True)

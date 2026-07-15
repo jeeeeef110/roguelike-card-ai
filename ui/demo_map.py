@@ -1,7 +1,8 @@
-"""ui/demo_map.py — U3 驗收 demo:互動走完一輪地圖(戰鬥自動勝 stub)
+"""ui/demo_map.py — 完整一輪冒險 demo:地圖 ↔ 互動戰鬥(U3+U4 串接)
 
 執行:python3 -m ui.demo_map [seed]
-操作:點擊呼吸閃爍的節點前進;走到 Boss 即勝利。關窗結束。
+操作:點擊呼吸閃爍的節點前進;戰鬥節點會進入 BattleScene 手動對戰,
+打完自動回地圖(獎勵暫自動拿第一張,U5 換抉擇面板)。關窗結束。
 
 主迴圈用 Pygbag 相容寫法(async + await asyncio.sleep(0)),
 之後打包網頁版不用改(A5 守則:一開始就這樣寫)。
@@ -20,16 +21,12 @@ from ui.scenes import Director
 W, H = 960, 540
 
 
-def _auto_win(run, node):
-    return True, run.hp     # U3 stub:自動勝(U4 換成 BattleScene)
-
-
 async def main(seed: int = 7) -> None:
     pygame.init()
     screen = pygame.display.set_mode((W, H))
-    pygame.display.set_caption("暗夜光網 — 地圖 demo(U3)")
+    pygame.display.set_caption("暗夜光網 — 一輪冒險 demo(U3+U4)")
     director = Director(W, H)
-    director.push(MapScene(RunState(seed), _auto_win))
+    director.push(MapScene(RunState(seed)))     # 無 hook → 互動戰鬥
     clock = pygame.time.Clock()
     running = True
     while running:

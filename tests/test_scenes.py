@@ -20,8 +20,7 @@ W, H = 320, 180
 def _pygame():
     pygame.init()
     pygame.display.set_mode((W, H))
-    yield
-    pygame.quit()
+    yield   # quit 統一在 conftest(session 結束);模組內 quit 會讓字體快取懸空
 
 
 class Probe(Scene):

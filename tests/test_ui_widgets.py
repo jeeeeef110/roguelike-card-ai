@@ -18,8 +18,7 @@ WHITE = (232, 240, 255)
 def _pygame():
     pygame.init()
     pygame.display.set_mode((320, 180))
-    yield
-    pygame.quit()
+    yield   # quit 統一在 conftest(session 結束);模組內 quit 會讓字體快取懸空
 
 
 @pytest.fixture(autouse=True)

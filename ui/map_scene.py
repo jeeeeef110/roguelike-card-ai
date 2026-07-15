@@ -19,10 +19,15 @@ import math
 
 import pygame
 
+from core.enemies import enemy_ai
+from core.engine import start_battle
+from core.models import GameState, PlayerState
 from core.run import (RunState, enter_node, next_choices, rest_heal,
-                      take_potion, take_reward)
+                      spawn_enemy, take_potion, take_reward)
+from ui.battle_scene import BattleScene
 from ui.glow import glow_circle
 from ui.scenes import BG, Scene
+from ui.text import draw_text
 from ui.tween import Tween
 
 ROW_H = 96              # 每層世界座標高度差(y 遞減 → 越深越上面)
@@ -70,10 +75,12 @@ def _layout(game_map) -> dict:
 
 
 class MapScene(Scene):
-    """battle_hook(run, node) -> (win, hp_left) 由呼叫端注入
-    (headless 測試接代理、demo 接自動勝、U4 起接 BattleScene)。"""
+    """battle_hook(run, node) -> (win, hp_left):
+    - 給定(headless 測試/模擬)→ 戰鬥同步結算,不開場景
+    - None(預設,正式遊戲)→ 戰鬥節點推 BattleScene 互動對戰,
+      打完把結果餵回 enter_node(core 三段式不變)"""
 
-    def __init__(self, run: RunState, battle_hook):
+    def __init__(self, run: RunState, battle_hook=None):
         self.run = run
         self.battle_hook = battle_hook
         self.pos = _layout(run.game_map)
@@ -118,8 +125,34 @@ class MapScene(Scene):
                      on_done=lambda: self._resolve(node)))
 
     def _resolve(self, node):
-        """推近完成 → 經 core API 結算節點(U3 佔位策略見模組說明)。"""
-        out = enter_node(self.run, node, self.battle_hook)
+        """推近完成:戰鬥節點走互動對戰,其餘直接經 core 結算。"""
+        if (self.battle_hook is None
+                and node.node_type in ("battle", "elite", "boss")):
+            self._launch_battle(node)
+            return
+        self._after_enter(node, enter_node(self.run, node, self.battle_hook))
+
+    def _launch_battle(self, node):
+        """把 run 狀態帶進互動戰鬥(藥水進場、戰後寫回剩餘),
+        打完以「重播結果」的 hook 餵回 enter_node——core 介面不變。"""
+        enemy = spawn_enemy(self.run, node)
+        p = PlayerState(hp=self.run.hp, max_hp=self.run.max_hp,
+                        deck=list(self.run.deck))
+        p.potions = list(self.run.potions)
+        state = GameState(p, enemy, seed=self.run.rng.randrange(2 ** 31))
+        start_battle(state, enemy_ai)
+
+        def finish(win: bool, hp_left: int):
+            self.run.potions = list(state.player.potions)
+            self.director.pop(transition="fade")
+            self._after_enter(node, enter_node(
+                self.run, node, lambda _run, _node: (win, hp_left)))
+
+        self.director.push(BattleScene(state, enemy_ai, on_finish=finish),
+                           transition="fade")
+
+    def _after_enter(self, node, out: dict):
+        """enter_node 之後的共同收尾(U3 佔位策略見模組說明)。"""
         self.walked.append((node.layer, node.index))
         if "rewards" in out:
             take_reward(self.run, out["rewards"], out["rewards"][0])
@@ -186,3 +219,14 @@ class MapScene(Scene):
                 r = max(4, round(NODE_R * mult * cam.zoom / 2) * 2)  # 步進 2
                 glow_circle(surface, screen(coord), r,
                             _scaled_color(TYPE_COLORS[node.node_type], k))
+
+        if self.outcome is not None:
+            veil = pygame.Surface(surface.get_size())
+            veil.fill(BG)
+            veil.set_alpha(180)
+            surface.blit(veil, (0, 0))
+            win = self.outcome == "victory"
+            draw_text(surface, "冒險勝利" if win else "冒險失敗",
+                      (surface.get_width() / 2, surface.get_height() / 2),
+                      52, TYPE_COLORS["rest" if win else "boss"],
+                      bold=True, align="center")

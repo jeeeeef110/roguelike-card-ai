@@ -56,4 +56,7 @@ def cache_size() -> int:
 
 
 def clear_cache() -> None:
+    """清空文字與字體快取。若曾 pygame.quit() 再重 init,必須先呼叫
+    本函式——舊 Font 物件綁定前一個 pygame 執行期,直接用會崩潰。"""
     _texts.clear()
+    _fonts.clear()

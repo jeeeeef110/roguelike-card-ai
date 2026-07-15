@@ -1,5 +1,5 @@
 # PROGRESS
-更新日期:2026-07-15(PC 恢復:U2 + U3 + U4 主體完成——UI 五模組,驗收門全過)
+更新日期:2026-07-15(PC 恢復:U2–U4 完成含接線——地圖↔戰鬥完整循環可玩)
 
 ## 已完成
 ### 第一階段(core + 三版代理 + 模擬器)— 2026-07-07 完成
@@ -131,9 +131,24 @@
 - **U4 驗收門通過**:規則式代理決策+UI 點擊路徑打贏巨鼠
   (test_full_battle_win_vs_giant_rat_via_ui_clicks);>55fps
 - U4 佔位待補(記在待辦):藥水槽、MCTS 建議開關、Boss 二階段演出
-  (暗化+鏡頭震)、_choose 卡的選擇面板(現自動選第一個合法對象)、
-  MapScene battle_hook 接 BattleScene(換掉自動勝 stub)
+  (暗化+鏡頭震)、_choose 卡的選擇面板(現自動選第一個合法對象)
 - 測試 215/215(新增 test_ui_widgets 10 + test_battle_scene 7)
+
+### UI U4 收尾:地圖↔戰鬥接線(2026-07-15,同日)
+- [ui/map_scene.py] battle_hook=None(預設)時戰鬥節點推 BattleScene
+  互動對戰:spawn_enemy 帶菁英/進階倍率、run 的 HP/牌組/藥水進場、
+  戰後藥水寫回;結果以「重播 hook」餵回 enter_node——core 三段式介面
+  零改動。給定 battle_hook 則維持同步結算(headless 測試/模擬不變)。
+  地圖加冒險勝敗覆蓋文字
+- [ui/demo_map.py] 升級為完整一輪冒險 demo:地圖 ↔ 手動戰鬥循環
+- **修 bug:全套測試 segfault**——各測試檔 module fixture 各自
+  pygame.quit(),ui.text 快取的 Font 綁定舊執行期,下個模組再用即
+  原生層崩潰。修法:tests/conftest.py 統一 session 結束才 quit,
+  text.clear_cache 連字體一起清。教訓:跨模組快取 + 生命週期成對
+  的 C 資源(init/quit)必須單一擁有者
+- 整合驗收:test_full_interactive_run_via_ui_clicks——完整一輪冒險,
+  地圖點節點+戰鬥由規則式代理經 UI 點擊執行,直到勝負
+- 測試 221/221(新增 test_map_battle_wiring 6 項;連跑兩次確認穩定)
 
 ## A/B 對照紀錄(新增)
 ### 實驗 3(2026-07-08):MCTS rollout policy × iterations
@@ -205,10 +220,10 @@ heuristic@500 追平 Expectimax(98%)。待辦 #2 歸因確定:主因是
 ## 待辦(依優先序,PC 恢復後)
 1. W5-6:Pygame UI——照 docs/UI視覺規格與格子戰鬥提案.md 的 A 部執行
    (「暗夜光網」;U4 前禁用美術素材;一開始就用 Pygbag 相容寫法)。
-   **U1–U4 主體完成(tween/camera/glow/scenes/map_scene/text/widgets/
-   battle_scene 全綠)**:下一步 U4 收尾接線——MapScene 的 battle_hook
-   改推 BattleScene(戰鬥前捕捉結果、回頭餵 enter_node),換掉自動勝
-   stub 後即可從地圖一路手動打到 Boss;再進 U5 五個抉擇場景
+   **U1–U4 完成含接線(demo_map 已是完整可玩循環)**:下一步 U5
+   五個抉擇場景(Reward/Shop/Event/Rest/Settle 共用「抉擇面板」元件,
+   A3.3:三選一錯相滑入、選中放大飛牌堆、菁英金光橫掃),
+   換掉現在的自動拿獎勵/自動回血/商店事件路過三個佔位
 2. 矩陣定稿:expectimax/mcts 各格 n≥200 重跑(沙盒僅 50 場,±7%);
    節奏流×expectimax 需先做搜尋剪枝(見 4)才可能量得完
 3. MCTS 反甲流殘差:rollout 加入「等待/疊甲節奏」規則或 payoff 先驗,
