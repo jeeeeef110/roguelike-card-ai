@@ -37,6 +37,7 @@ class PlayerState:
         "block", "block_retain",          # block_retain: 堅守效果,本回合結束護甲不歸零
         "strength", "vulnerable", "poison",
         "hand", "draw_pile", "discard_pile",
+        "potions",                        # 攜帶中的藥水 id(免費動作使用)
         "next_energy_delta",              # 蓄勢 +2 / 透支 -1,下回合開始時結算後歸零
         "attack_cost_delta",              # 織網:本回合攻擊卡費用修正,回合結束歸零
         "attacks_played",                 # 撕裂:本回合已出攻擊卡數,回合結束歸零
@@ -53,6 +54,7 @@ class PlayerState:
         self.strength = 0
         self.vulnerable = 0
         self.poison = 0
+        self.potions: list[str] = []
         self.hand: list[str] = []
         self.draw_pile: list[str] = list(deck)
         self.discard_pile: list[str] = []
@@ -72,6 +74,7 @@ class PlayerState:
         c.strength = self.strength
         c.vulnerable = self.vulnerable
         c.poison = self.poison
+        c.potions = list(self.potions)
         c.hand = list(self.hand)
         c.draw_pile = list(self.draw_pile)
         c.discard_pile = list(self.discard_pile)

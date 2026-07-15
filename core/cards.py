@@ -133,13 +133,35 @@ STARTING_DECK: list[str] = ["strike"] * 5 + ["defend"] * 4 + ["rampage"]
 # v2.3 平衡修正:玩家起始 HP(遠低於 Boss 90,一般戰失誤 2-3 次即有壓力)
 PLAYER_HP: int = 50
 
+# 升級卡覆蓋表(events.py 衍生的鍛造/淬毒版,與 CARDS 分開:
+# CARDS 永遠只有基礎卡池,測試與獎勵抽卡邏輯不受升級卡污染)
+UPGRADES: dict[str, Card] = {}
+
 # v2.2 §3.5:獎勵抽卡權重(起始卡不進獎勵池)
 RARITY_WEIGHTS: dict[str, int] = {"common": 3, "rare": 1}
+
+
+def _register_upgrades() -> None:
+    """預先註冊所有升級變體(鍛造 _s:費用-1;淬毒 _p:中毒+1)。
+    在模組載入時執行——存檔裡的升級卡 id 在任何新行程都查得到,
+    不依賴 events 模組是否被 import 或該升級是否被觸發過(延遲註冊的地雷)。"""
+    for cid, c in list(CARDS.items()):
+        if c.cost > 0:
+            UPGRADES[cid + "_s"] = Card(cid + "_s", c.name + "+", c.cost - 1,
+                                        c.kind, c.rarity, c.effects)
+        eff = tuple(("apply_poison", e[1] + 1) if e[0] == "apply_poison" else e
+                    for e in c.effects)
+        if eff != c.effects:
+            UPGRADES[cid + "_p"] = Card(cid + "_p", c.name + "毒", c.cost,
+                                        c.kind, c.rarity, eff)
+
+
+_register_upgrades()
 
 
 def get_card(card_id: str) -> Card:
     """以 card_id 取得共享的卡牌定義。未知 id 直接報錯(在邊界驗證輸入)。"""
     try:
-        return CARDS[card_id]
+        return CARDS.get(card_id) or UPGRADES[card_id]
     except KeyError:
         raise KeyError(f"未知的 card_id:{card_id!r}(合法值見 core/cards.py CARDS)") from None

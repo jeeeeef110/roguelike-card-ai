@@ -44,6 +44,9 @@ def _hit_enemy(state: GameState, base: int, *, use_strength: bool = True,
     blocked = min(state.enemy.block, dmg)
     state.enemy.block -= blocked
     state.enemy.hp -= dmg - blocked
+    # 通用受擊計數:每次「攻擊」+1(中毒 tick 不經此處,不計)。
+    # 目前使用者:狂戰士(每次受擊力量+1)。任何敵人的意圖函式可讀後歸零。
+    state.enemy.pattern["hits_taken"] = state.enemy.pattern.get("hits_taken", 0) + 1
     _check_battle_end(state)
 
 
@@ -195,6 +198,22 @@ def play_card(state: GameState, card_id: str, choice: str | None = None) -> None
         p.attacks_played += 1  # 撕裂計數:結算後才 +1,故撕裂不算自己
 
 
+def use_potion(state: GameState, potion_id: str) -> None:
+    """使用藥水:免費動作(不耗能量、不計攻擊卡上限、不進棄牌堆)。
+    效果走與卡牌同一個 _execute_effect——藥水就是不進牌庫的一次性卡。"""
+    from core.potions import get_potion  # 區域 import:potions 依賴表與 engine 解耦
+    p = state.player
+    if state.battle_over:
+        raise ValueError("戰鬥已結束,不能使用藥水")
+    if potion_id not in p.potions:
+        raise ValueError(f"沒有攜帶 {potion_id!r}")
+    p.potions.remove(potion_id)
+    for effect in get_potion(potion_id).effects:
+        _execute_effect(state, effect, None)
+        if state.battle_over:
+            break
+
+
 # ---------------------------------------------------------------- 敵人意圖執行
 
 
@@ -211,6 +230,13 @@ def _execute_intent(state: GameState) -> None:
         _hit_player(state, intent[1])
         if not state.battle_over:
             state.player.poison += intent[2]
+    elif kind == "attack_lifesteal":
+        # 吸血:回復量=實際造成的 HP 損失(護甲擋掉的部分吸不到,
+        # 所以高甲是吸血系的硬剋星——這就是牠的「謎題」)
+        hp_before = state.player.hp
+        _hit_player(state, intent[1])
+        dealt = hp_before - state.player.hp
+        state.enemy.hp = min(state.enemy.max_hp, state.enemy.hp + dealt)
     elif kind == "block":
         state.enemy.block += intent[1]
     elif kind == "poison":
@@ -310,6 +336,8 @@ def legal_actions(state: GameState) -> list[tuple]:
             if a not in seen:
                 seen.add(a)
                 actions.append(a)
+    for pid in dict.fromkeys(p.potions):          # 同種藥水只列一次
+        actions.append(("potion", pid))
     actions.append(("end_turn",))
     return actions
 
@@ -317,6 +345,8 @@ def legal_actions(state: GameState) -> list[tuple]:
 def apply_action(state: GameState, action: tuple, enemy_ai=None) -> None:
     if action[0] == "play":
         play_card(state, action[1], action[2] if len(action) > 2 else None)
+    elif action[0] == "potion":
+        use_potion(state, action[1])
     elif action[0] == "end_turn":
         end_turn(state, enemy_ai)
     else:

@@ -1,58 +1,119 @@
 # PROGRESS
-更新日期:2026-07-07
+更新日期:2026-07-08(沙盒衝刺:MCTS 調參 + build 矩陣 + M2 headless 全部完成)
 
 ## 已完成
-- [repo] 骨架建立:core/agents/ui/sim/tests 五層
-- [core/models.py] Card / PlayerState / EnemyState / GameState 資料結構,含手寫 clone()。測試 8/8 通過
-- [tests/test_models.py] clone 獨立性、RNG 三模式、效能基準(門檻 10 萬次/秒)
-- [core/cards.py] 25 張卡資料定義(照 v2.2 §3.3)+ CARDS 註冊表 + STARTING_DECK +
-  RARITY_WEIGHTS。效果指令集(opcodes)完整列在檔頭 docstring,供 engine.py 實作依據
-- [tests/test_cards.py] 25 張/id 一致、起始牌組、稀有度分佈、effects 結構、
-  kind 分類規則、關鍵卡逐格抽查
-- [core/engine.py] 規則引擎:傷害管線(力量→易傷×1.5 取整→護甲)、全部 opcodes、
-  回合流程、敵人意圖執行、代理接口 legal_actions/apply_action(enemy_ai 注入式)
-- [tests/test_engine.py] 33 個規則測試(傷害管線/回合資源/特殊卡/接口與勝負,
-  含 200 步隨機冒煙測試)
-- [core/enemies.py] 巨鼠/毒蛛/石像兵意圖狀態機 + 被動(打斷、織網、疊甲),
-  enemy_ai(state) 分派器直接插進 engine
-- [tests/test_enemies.py] 規格數值、打斷閾值邊界(7/8 傷)、織網回合、石像兵循環、
-  意圖機率分佈(2000 抽 ±5%)、三隻整場冒煙。全套 61/61 通過
-- [ui/terminal_play.py] 終端手動對戰:python3 -m ui.terminal_play [敵人] [seed]
-  → W1 驗收達成:能完整打一場
+### 第一階段(core + 三版代理 + 模擬器)— 2026-07-07 完成
+- [repo] core/agents/ui/sim/tests 五層;models/cards/engine/enemies + 全套測試
+- [agents] random / rule_based / expectimax / mcts(細節見 git log 與舊版 PROGRESS)
+- [ui/terminal_play] 終端手動對戰;[sim/runner] headless 模擬器
+- [Boss] 腐化騎士網格搜尋調校,拉開代差(random 0 / rule 27.8 / mcts 89 / expectimax 98%)
 
-- [agents/base.py + rule_based.py] 代理介面、隨機基線、規則式代理
-  (能殺就殺 → 擋致死 → 最大化即時輸出 → 補甲 → 結束;複本試打評估,刻意短視)
-- [sim/runner.py] headless 模擬器:python3 -m sim.runner,500 場 <0.1s,
-  同 seed 換代理抽牌序不變(代理自帶 RNG),差異全歸因決策
-- [tests/test_agents.py] 五條規則行為、不自殺、動作合法性、可重現、贏過隨機基線。
-  全套 78/78 通過
+### 沙盒衝刺(2026-07-08,手機遠端;電腦 7/14 前不可用)
+- [agents/mcts.py] rollout policy 選項:random(預設,歷史基線)/ heuristic
+  (ε-greedy 靜態評分,零複本試打;含狀態相依傷害:反甲擊看當下護甲、引爆看毒層)
+- [sim/exp_mcts_tuning.py] 實驗 3:rollout × iterations 全格完成(見下)
+- [sim/decks.py] 5 條 build 牌組(13 張制,控制牌組大小混淆變數)
+- [sim/exp_build_matrix.py] 實驗 4:5 build × 3 代理 Boss 勝率矩陣(見下)
+- [core/map_gen.py + tests] 分層 DAG 地圖生成:全約束 + 連通性,
+  1000 seeds 性質測試(生成器與驗證器分開寫互相檢查)
+- [core/events.py + tests] 三事件(鐵匠/毒藥商/老戰士)純函式;
+  升級卡走 UPGRADES 覆蓋表(衍生 id,CARDS 基礎卡池不受污染,引擎零改動)
+- [core/run.py + tests] 完整一輪冒險:地圖行走/戰鬥委派 hook/獎勵三選一/
+  休息/商店/事件;經濟初始值(勝+25 金、稀有卡 65、刪卡 50、休息回 30%)
+- [sim/make_charts.py] 產出 docs/charts/mcts_tuning.png、build_matrix.png
+- [run_tests.py + tools_offline/] 無 pytest 環境的測試執行器(沙盒/離線用)
+- 測試:121/121 全綠(map 7 + events 11 + run 9 新增)
+- **M2 headless 部分完成:專案只剩 Pygame UI 需要電腦**
 
-- [agents/expectimax.py] Expectimax 代理:回合內 Max 節點窮舉、end_turn 為
-  Chance 節點取樣 K 個未來取平均、common random numbers 控變異數、
-  未知敵人回退「意圖重複」模型。測試含「毒的盲點」代差場景。全套 83/83 通過
+### 趣味性擴充(2026-07-08 第三波:參考殺戮尖塔的樂趣公式)
+- [core/potions.py + engine] 藥水系統:5 種、上限 3 瓶、戰鬥中**免費動作**
+  (不耗能量不計攻擊上限);效果複用卡牌指令集=不進牌庫的一次性卡,
+  引擎只加一個動作型別。戰後 35% 掉落、商店販售(25 金)
+- [core/run.py] 休息點改**二選一:回血 30% or 鍛造一張卡**(複用鐵匠的
+  _smith_id)——類型核心抉擇「保命 vs 變強」,每個休息點都是一題
+- 測試 142/142(新增 test_potions 11 項);冒煙測試同步更新
+- 注意:battle_hook 負責把 run.potions 帶進戰鬥、戰後把剩餘寫回
+  (tests/test_run._agent_battle 為範例,UI 接線時照做)
 
-- [agents/mcts.py] MCTS+UCB1 + determinization(每迭代 clone 到取樣 seed 的
-  假想未來、UCB1 樹內選擇、隨機 rollout、勝率回傳)。測試 89/89 通過
-- [效能] 剖析發現 clone(rng=int) 的 MT 播種佔 Expectimax 1/3 時間(5.6 萬次/場)
-  → models.clone 支援 Random 物件重用:0.60s → 0.47s/場。★報告素材(剖析續集)
-- 三版代理對照數據第一批(見下方 A/B 紀錄)→ 第一階段(core+代理+模擬器)完成
+### 養成系統(2026-07-08 第四波,Jeff 拍板「Boss 三選一解鎖」)
+- [core/meta.py + tests] 局外進度 MetaState:**擊殺 Boss → 未解鎖稀有卡
+  抽 3 選 1 永久入池**(收集軸主循環);起始解鎖 3/7 張(依 meta seed,
+  每個玩家起點不同);碎片結算(層×2+菁英×5+Boss+20,雖敗猶得);
+  進階最高紀錄;JSON 存檔含版本號與孤兒 id 防呆
+- [core/run.py] RunState 接受 unlocked_rares,獎勵/菁英/商店卡池過濾;
+  小卡池防呆(不重複卡種 <3 時發多少算多少,不卡死)
+- 設計鐵律(記入 design):養成解鎖「變化」不解鎖「變強」——
+  永久數值加成會污染平衡數據,原 GDD 的「永久小幅加成」廢除
+- 測試 152/152(新增 test_meta 10 項)
+- 剩餘接線(UI 階段):結算畫面呼叫 settle_run、勝利畫面呈現
+  boss_unlock_choices 三選一、開局讀 MetaState 傳 unlocked_rares 給 RunState
 
-- [core/enemies.py] Boss 腐化騎士:狂暴計時 + 雙階段,數值經 36 組網格搜尋
-  調校至規則式勝率 27.8%(目標 25-40%,Jeff 指定)。Boss 成功拉開代差:
-  random 0% / rule 27.8% / mcts 89% / expectimax 98%——設計核心命題獲數據驗證
+### 待拍板提案(不實作,需 Jeff 明確同意)
+- **格子戰鬥 v2**(5×5 盤面、卡牌射程形狀、Boss 格上攻擊預告):完整規格與
+  衝擊評估見 docs/UI視覺規格與格子戰鬥提案.md B 部。決策條件:現行版
+  U1–U7 完成且備審材料齊(實際=2027 年 2–3 月後)。未拍板前禁止實作
+- 「紋章」輕量遺物:每輪冒險最多 3 個被動(如「每回合第一張攻擊卡免費」
+  「連鎖:單回合第 3 張攻擊卡起傷害+2」)。Balatro/殺戮尖塔的 build 樂趣
+  核心來源;效果掛既有鉤子,估 2-3 天。若同意,列入 PC 恢復後排程
 
-## 進行中
-- 無(PR #1 已 merge;Boss 完成)
+### 變化性擴充(2026-07-08 第二波)
+- [core/enemies.py] 新敵人 ×2,各含謎題:吸血蝠(吸實際傷害,全擋=吸不到
+  →反甲剋星)、狂戰士(每受擊力量+1,毒 tick 不計→反連擊、毒是解法);
+  engine 加 attack_lifesteal 意圖 + 通用受擊計數器(pattern["hits_taken"])
+- [core/map_gen.py] 菁英節點(第 4 層起,權重 1)、深度分池(2–4 層只出
+  入門怪,5 層起全池)、層數參數化 generate_map(seed, n_layers=10..15)
+- [core/run.py] 菁英戰:金 45 + 三選一全稀有(build 定義時刻);
+  spawn_enemy 統一倍率(菁英 HP×1.35+力量1);進階等級 ascension
+  (每級敵 HP+10%,通關解鎖下一級=重玩軸)
+- 測試 132/132(新增 test_variety 11 項);新敵人平衡快照:起始牌組下
+  三代理全 100% 勝(剩 HP 31–46,偏易)——謎題設計本來就是對 build 觸發,
+  數值標待平衡
 
-## 待辦(依優先序)
-1. W5-6:Pygame UI(手牌、意圖、出牌建議顯示)
-2. MCTS 調參議程:200 iterations + 隨機 rollout 在一般戰不如貪婪
-   (石像兵剩 HP 23.8 vs 規則式 28.8)——iterations 加大 / rollout 改
-   規則式 policy / 等 Boss 與 build 牌組再評,三者擇機做對照實驗
-3. 平衡觀察:一般敵人威脅在傷害面不在血量面(HP+50% 砍不動有腦代理勝率),
-   等 Boss 進場後再評估
+### UI 基座(2026-07-08 第五波:藍圖 U1 + U2 純數學部分)
+- [ui/tween.py] 補間系統:4 種 easing、delay、on_done、同物件同屬性後蓋前、
+  精確落點(浮點誤差不外漏)。零依賴,不 import pygame
+- [ui/camera.py] 鏡頭:x/y/zoom 皆可被 tween 直接驅動;world↔screen 轉換、
+  visible_rect 剔除、pan_zoom_targets 便利工具
+- 測試 167/167(新增 test_ui_math 15 項:easing 端點性質、tween 行為全覆蓋、
+  鏡頭往返精度、tween 驅動鏡頭整合)
+- **U1 驗收門通過**;U2 剩餘(glow.py、scenes.py 繪製層)需 pygame → PC 首日:
+  `pip install pygame`,寫 glow/scenes 時 tween 與 camera 直接可用
 
-## A/B 對照紀錄
+## A/B 對照紀錄(新增)
+### 實驗 3(2026-07-08):MCTS rollout policy × iterations
+石像兵(100 場):random@200 剩HP 23.5 → heuristic@200 **30.7**(追平代差:
+rule 28.8 / expectimax 31.9);heuristic@100 也有 29.0。
+Boss(60 場/格):
+| rollout | 100 iters | 200 iters | 500 iters |
+|---------|----------|-----------|-----------|
+| random | — | 91.7%(剩2.9) | 90.0%(剩4.3) |
+| heuristic | 95.0%(剩6.3) | 95.0%(剩8.5) | **98.3%(剩8.8)** |
+結論:**rollout 品質 >> 迭代數**——random 加到 500 iters 仍輸 heuristic@100;
+heuristic@500 追平 Expectimax(98%)。待辦 #2 歸因確定:主因是
+「隨機 rollout 低估防禦」(歸因2),不是 iterations(歸因1)。★報告素材
+
+### 實驗 4(2026-07-08):5 build × 3 代理 Boss 勝率矩陣(圖:docs/charts/build_matrix.png)
+| build | rule(500場) | expectimax(50場) | mcts@200 heur(50場) |
+|-------|------|-----------|------|
+| 毒流 | 15.6% | 100% | 96–100% |
+| 力量流 | 38.4% | 100% | 100% |
+| 反甲流 | 13.4% | 98% | **56→64%** |
+| 易傷流 | **92.2%** | 98% | 100% |
+| 節奏流 | 33.8% | 爆炸(見下) | 94% |
+發現:
+1. 長線 build(毒/力量)代差最大(15.6/38.4% → 100%)——設計命題成立 ★核心圖表
+2. **Expectimax × 節奏流組合爆炸實測**:充能(棄牌分支)×回收(撿牌分支)×兵法
+   (抽牌)把回合內窮舉炸開,單場 22.6s、部分 seed >130s,50 場矩陣格不可行。
+   design.md §6.2「出牌順序:Expectimax 組合爆炸吃力」預言命中;
+   MCTS 同牌組 0.46s/場 94%(iterations 有界)——兩種搜尋的本質差異一張表講完 ★報告素材
+3. **MCTS × 反甲流弱點**:56%(rollout 評分漏了 damage_equal_block/detonate_poison
+   → 修正後 64%)仍遠低於 expectimax 98%。殘差歸因:反甲流需跨回合疊甲再 payoff,
+   貪婪 rollout 低估「等待價值」+ 狂暴計時懲罰慢節奏。→ 待辦(誠實的未竟之處)
+4. 平衡旗標:易傷流對 rule 都有 92.2%(其他 build 13–38%)——易傷流疑似過強,
+   下次平衡迭代的 A/B 對象
+5. 樣本數注意:expectimax/mcts 格僅 50 場(±7%),PC 端應以 n≥200 重跑定稿
+
+## A/B 對照紀錄(第一階段)
 ### 實驗 1(2026-07-07):敵人 HP +50%(28/22/40 → 42/33/60),其餘不動
 | 代理 | 巨鼠勝率 | 毒蛛勝率 | 石像兵勝率 | 石像兵勝場剩HP |
 |------|---------|---------|-----------|---------------|
@@ -85,7 +146,33 @@
 - 驗證(同數值):random 0% / rule 27.8%(500 場)/ mcts 89%(100 場)
   / expectimax 98%(150 場)→ **Boss 拉開代差,W1 埋的設計命題成立**★報告素材
 
+## 待辦(依優先序,PC 恢復後)
+1. W5-6:Pygame UI——照 docs/UI視覺規格與格子戰鬥提案.md 的 A 部執行
+   (「暗夜光網」;U4 前禁用美術素材;一開始就用 Pygbag 相容寫法)。
+   **U1 已完成、U2 完成一半(tween/camera 綠燈)**:PC 首日裝 pygame 後
+   從 glow.py 接手,再 scenes.py,然後 U3 MapScene
+2. 矩陣定稿:expectimax/mcts 各格 n≥200 重跑(沙盒僅 50 場,±7%);
+   節奏流×expectimax 需先做搜尋剪枝(見 4)才可能量得完
+3. MCTS 反甲流殘差:rollout 加入「等待/疊甲節奏」規則或 payoff 先驗,
+   把 64% 拉近 expectimax 的 98%
+4. Expectimax 組合爆炸對策(選做,好素材):回合內序列剪枝 / beam width 上限
+5. 平衡:易傷流過強旗標(rule 92.2% vs 其他 13-38%)——A/B:制裁 6+4 → 5+3?
+6. 新敵人平衡:對 build 牌組(連擊 vs 狂戰士、低甲速攻 vs 吸血蝠)跑矩陣,
+   驗證謎題真的咬人;初始 HP 38/52 視結果調
+7. 養成系統、存檔(第三階段);進階等級已就緒可直接當養成的解鎖軸
+
 ## 重要決策紀錄
+- 2026-07-08:MCTSAgent 增 rollout="heuristic"(ε=0.2 保留探索;靜態評分含
+  狀態相依傷害:反甲擊看當下護甲、引爆看毒層)。建構子預設仍 random
+  保留「三版對照」歷史基線,sim/runner 的 mcts 改用 heuristic(實驗 3 全面較優)
+- 2026-07-08:升級卡(鐵匠/毒藥商)= 衍生新 id 註冊進 UPGRADES 覆蓋表,
+  get_card 查 CARDS→UPGRADES。理由:Card 共享不可變原則不破、
+  基礎卡池測試不受污染、「效果=資料」延伸為「升級=資料替換」,引擎零改動
+- 2026-07-08:冒險層(run.py)所有玩家選擇走「查選項→呼叫端決定→執行」三段式,
+  戰鬥以 battle_hook 委派——同一套 run.py 服務 headless 測試與之後的 Pygame
+- 2026-07-08:經濟初始值(勝+25/稀有卡65/刪卡50/休息30%)標記為待調非定案
+
+### 第一階段決策(2026-07-07,保留)
 - 2026-07-07:GameState.clone() 的 RNG 預設為 share 模式(共用 Random 物件)。
   理由:效能測量發現 Mersenne Twister 狀態複製(625-int)是瓶頸——
   完整複製 RNG 時 clone 僅 4.2 萬次/秒,繞開後達 113 萬次/秒(快 27 倍)。
@@ -131,4 +218,11 @@
   抽牌序完全相同,勝率差異可完全歸因於決策品質(A/B 對照的前提)
 
 ## 已知問題
+- shop_buy_card 不驗證 card_id 是否為本次商店提供的那張(信任呼叫端)——
+  UI 接上時記得只把商店 offer 的卡傳進來
+- 升級卡的「二次升級」(如 bash_s_s)走 events 的延遲註冊:同行程可用,
+  但存檔跨行程讀回不保證存在。MVP 建議限制每張卡只能鍛造一次,
+  或存檔系統上線時把二階 id 一併預註冊
+- 沙盒實驗樣本數:expectimax/mcts 矩陣格僅 50 場(±7%),結論方向可信、
+  數字非定稿(見待辦 2)
 - 無

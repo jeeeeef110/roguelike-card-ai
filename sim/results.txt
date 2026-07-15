@@ -1,0 +1,8 @@
+golem_rand_200   enemy=stone_golem       n=100 iters=200 rollout=random    win=100.0% turns=8.0 hp_left=23.5 1.09s/場
+golem_heur_200   enemy=stone_golem       n=100 iters=200 rollout=heuristic win=100.0% turns=10.0 hp_left=30.7 1.61s/場
+golem_heur_100   enemy=stone_golem       n=100 iters=100 rollout=heuristic win=100.0% turns=9.6 hp_left=29.0 0.73s/場
+boss_rand_200    enemy=corrupted_knight  n=60 iters=200 rollout=random    win=91.7% turns=6.1 hp_left=2.9 0.40s/場
+boss_heur_200    enemy=corrupted_knight  n=60 iters=200 rollout=heuristic win=95.0% turns=7.6 hp_left=8.5 0.72s/場
+boss_heur_100    enemy=corrupted_knight  n=60 iters=100 rollout=heuristic win=95.0% turns=8.0 hp_left=6.3 0.38s/場
+boss_heur_500    enemy=corrupted_knight  n=60 iters=500 rollout=heuristic win=98.3% turns=7.8 hp_left=8.8 2.00s/場
+boss_rand_500    enemy=corrupted_knight  n=60 iters=500 rollout=random    win=90.0% turns=6.2 hp_left=4.3 1.07s/場

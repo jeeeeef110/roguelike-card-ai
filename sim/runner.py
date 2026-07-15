@@ -61,7 +61,9 @@ AGENTS = {
     "random": lambda i: RandomAgent(seed=i),
     "rule": lambda i: RuleBasedAgent(),
     "expectimax": lambda i: ExpectimaxAgent(depth=2, samples=3, seed=i),
-    "mcts": lambda i: MCTSAgent(iterations=200, seed=i),
+    # 實驗 3 結論:啟發式 rollout 全面優於隨機(Boss 91.7%→95%@200 iters);
+    # MCTSAgent 建構子預設仍為 random(保留當「三版對照」的歷史基線)
+    "mcts": lambda i: MCTSAgent(iterations=200, seed=i, rollout="heuristic"),
 }
 
 

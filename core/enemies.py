@@ -68,12 +68,36 @@ def _stone_golem(state: GameState) -> tuple:
     return (("block", 8), ("attack", 9), ("attack", 9))[step]
 
 
+def _blood_bat(state: GameState) -> tuple:
+    """吸血蝠:70% 吸血攻擊 7(回復=實際造成的 HP 損失)/ 30% 攻擊 4+毒 1。
+    謎題:護甲全擋=牠吸不到血——反甲流的主場;拖戰則牠越打越補,
+    低甲的速攻牌組必須算「我掉血的速度 vs 牠回血的速度」的競速。"""
+    if state.rng.random() < 0.7:
+        return ("attack_lifesteal", 7)
+    return ("attack_poison", 4, 1)
+
+
+def _berserker(state: GameState) -> tuple:
+    """狂戰士:每受一次攻擊,力量 +1(從上次宣告以來的受擊數)。
+    行動:循環 攻 8 → 攻 8 → 甲 10。
+    謎題:反連擊——多段小刀餵養牠(連擊/亂舞/撕裂全是毒藥),
+    單發重擊與中毒(毒 tick 不算受擊)才是解法。整隻敵人就是
+    「傷害不是免費的」這句話。"""
+    e = state.enemy
+    e.strength += e.pattern.pop("hits_taken", 0)
+    step = e.pattern.get("bz_step", 0)
+    e.pattern["bz_step"] = (step + 1) % 3
+    return (("attack", 8), ("attack", 8), ("block", 10))[step]
+
+
 # enemy_id → (HP, 護甲不歸零, 意圖函式)
 # HP 為 v2.3 平衡值(原 28/22/40,+50%:三代理勝率全 100% 飽和 → 拉長戰鬥)
 ENEMIES: dict[str, tuple[int, bool, object]] = {
     "giant_rat": (42, False, _giant_rat),
     "poison_spider": (33, False, _poison_spider),
     "stone_golem": (60, True, _stone_golem),
+    "blood_bat": (38, False, _blood_bat),        # 初始值待平衡
+    "berserker": (52, False, _berserker),        # 初始值待平衡
     "corrupted_knight": (90, False, _corrupted_knight),  # Boss
 }
 

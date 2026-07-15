@@ -17,6 +17,7 @@
 from math import log, sqrt
 from random import Random
 
+from core.cards import get_card
 from core.engine import apply_action, legal_actions
 from core.models import GameState
 
@@ -45,11 +46,14 @@ class MCTSAgent(Agent):
     name = "mcts"
 
     def __init__(self, iterations: int = 200, c: float = 1.4,
-                 rollout_turns: int = 20, seed: int = 0):
+                 rollout_turns: int = 20, seed: int = 0,
+                 rollout: str = "random"):
         self.iterations = iterations
         self.c = c
         self.rollout_turns = rollout_turns
         self.rng = Random(seed)
+        assert rollout in ("random", "heuristic")
+        self.rollout = rollout
 
     def choose_action(self, state: GameState) -> tuple:
         actions = legal_actions(state)
@@ -95,6 +99,50 @@ class MCTSAgent(Agent):
 
     def _rollout(self, d: GameState, model, rng: Random) -> float:
         limit = d.turn + self.rollout_turns
+        pick = (self._heuristic_pick if self.rollout == "heuristic"
+                else (lambda st, acts, r: r.choice(acts)))
         while not d.battle_over and d.turn < limit:
-            apply_action(d, rng.choice(legal_actions(d)), model)
+            acts = legal_actions(d)
+            apply_action(d, pick(d, acts, rng), model)
         return _terminal_value(d)
+
+    @staticmethod
+    def _heuristic_pick(d: GameState, acts: list[tuple], rng: Random) -> tuple:
+        """ε-greedy 快速策略(rollout 專用,零複本試打):
+        80% 選靜態分數最高的動作,20% 均勻亂選(保留探索,避免 rollout
+        全走同一條線讓估值變成單點)。
+
+        靜態分數 = 卡面傷害 + 卡面護甲(敵人意圖是攻擊時護甲加權 1.2)。
+        刻意粗糙:只讀卡牌定義,不模擬。它的工作不是「玩得好」,
+        是讓 rollout 的雜訊小到樹統計得出「防禦有價值」——
+        隨機 rollout 低估防禦的問題(PROGRESS 待辦 #2 歸因 (2))出在
+        亂打的未來裡護甲常常白疊,估值分不出好壞。
+        """
+        if rng.random() < 0.2:
+            return rng.choice(acts)
+        incoming = d.enemy.intent[0] in ("attack", "attack_poison")
+        best, best_score = acts[0], -1.0
+        for a in acts:
+            if a[0] != "play":
+                score = 0.0  # end_turn:墊底但存在,全負分時可被選
+            else:
+                dmg = blk = 0
+                for eff in get_card(a[1]).effects:
+                    op = eff[0]
+                    if op == "damage":
+                        dmg += eff[1]
+                    elif op in ("damage_bonus_vs_vulnerable",
+                                "damage_per_vulnerable",
+                                "damage_per_attack_played",
+                                "damage_shatter"):
+                        dmg += eff[1]
+                    elif op == "damage_equal_block":   # 反甲擊:看當下護甲
+                        dmg += d.player.block
+                    elif op == "detonate_poison":      # 引爆:看當下毒層
+                        dmg += d.enemy.poison * eff[1]
+                    elif op == "block":
+                        blk += eff[1]
+                score = dmg + blk * (1.2 if incoming else 0.5)
+            if score > best_score:
+                best, best_score = a, score
+        return best
