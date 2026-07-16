@@ -1,5 +1,5 @@
 # PROGRESS
-更新日期:2026-07-15(PC 恢復:U2–U5 主體完成——完整冒險含獎勵/休息/商店/事件抉擇)
+更新日期:2026-07-16(U2–U6 完成:完整局外循環——進階選擇/冒險/結算/解鎖/存檔續玩)
 
 ## 已完成
 ### 第一階段(core + 三版代理 + 模擬器)— 2026-07-07 完成
@@ -167,6 +167,25 @@
 - 測試 240/240(新增 test_choice_panel 7 + test_choice_scenes 11;
   wiring 測試改為點面板路徑)
 
+### UI U5 收尾 + U6 養成接線(2026-07-16)
+- [ui/battle_scene.py] 藥水槽(A3.2):右下三圓槽、點擊使用=免費動作
+  (engine 管,不耗能量不計攻擊上限)、對應色光環擴散、效果飄字/血條
+  接動畫;demo_battle 預載兩瓶供測試。測試 +3(含空槽 no-op)
+- [ui/settle_scene.py] SettleScene(A3.3):碎片數字滾動累加(點擊快轉)、
+  勝敗統計、進階解鎖提示;勝利且有未解鎖稀有卡 → Boss 解鎖三選一
+  (複用 ChoicePanel+金光,不可跳過=收集軸主循環);每次進度變動即
+  meta.save(save_path=None 不落地,測試用)
+- [ui/map_scene.py] on_run_over 回呼:冒險結束、鏡頭拉回落定後通知
+- [ui/demo_map.py] 完整局外循環:讀 save/meta.json → 進階選擇面板
+  (CLI 給進階就跳過)→ 冒險(unlocked_rares 進 RunState)→ 結算/解鎖
+  → 再來一輪(seed+1)。save/ 已入 .gitignore
+- 堆疊紀律:next_run 先 pop 結算再選進階(replace 地圖),每輪之間
+  堆疊深度固定 1,不洩漏
+- 測試 251/251(新增 test_settle_scene 8:結算數學、滾動快轉、解鎖
+  面板、敗北無解鎖、全解鎖跳過、存檔續玩 roundtrip、on_run_over 時序)
+- **U6 驗收門通過**(Boss 解鎖三選一/進階選擇/存檔續玩);
+  聚光燈隆重進場演出留 U7 打磨
+
 ## A/B 對照紀錄(新增)
 ### 實驗 3(2026-07-08):MCTS rollout policy × iterations
 石像兵(100 場):random@200 剩HP 23.5 → heuristic@200 **30.7**(追平代差:
@@ -237,10 +256,9 @@ heuristic@500 追平 Expectimax(98%)。待辦 #2 歸因確定:主因是
 ## 待辦(依優先序,PC 恢復後)
 1. W5-6:Pygame UI——照 docs/UI視覺規格與格子戰鬥提案.md 的 A 部執行
    (「暗夜光網」;U4 前禁用美術素材;一開始就用 Pygbag 相容寫法)。
-   **U1–U5 主體完成(demo_map = 完整冒險含全部抉擇)**:U5 收尾
-   =戰鬥內藥水槽(右下三圓槽、點擊使用、炸光環,A3.2);之後 U6
-   養成接線(SettleScene 碎片滾動累加、Boss 解鎖三選一黑幕聚光、
-   MetaState 存檔續玩)
+   **U1–U6 完成(demo_map = 完整局外循環)**:剩 U7 音效+打磨+demo 影片
+   (Kenney 音效包接 OGG、Title 場景、Boss 二階段演出、MCTS 出牌建議
+   開關、解鎖聚光燈、鏡頭焦點取重心改善畫面利用率、光暈漸層加階)
 2. 矩陣定稿:expectimax/mcts 各格 n≥200 重跑(沙盒僅 50 場,±7%);
    節奏流×expectimax 需先做搜尋剪枝(見 4)才可能量得完
 3. MCTS 反甲流殘差:rollout 加入「等待/疊甲節奏」規則或 payoff 先驗,

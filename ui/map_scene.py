@@ -81,9 +81,10 @@ class MapScene(Scene):
     - None(預設,正式遊戲)→ 戰鬥節點推 BattleScene 互動對戰,
       打完把結果餵回 enter_node(core 三段式不變)"""
 
-    def __init__(self, run: RunState, battle_hook=None):
+    def __init__(self, run: RunState, battle_hook=None, on_run_over=None):
         self.run = run
         self.battle_hook = battle_hook
+        self.on_run_over = on_run_over    # 冒險結束(鏡頭拉回後)通知呼叫端
         self.pos = _layout(run.game_map)
         self.t = 0.0
         self.busy = False               # 鏡頭動畫中 → 輸入忽略
@@ -173,13 +174,18 @@ class MapScene(Scene):
             open_node_result(self, node, out, self._finish_node)
 
     def _finish_node(self):
-        """節點完全結束:鏡頭拉回、解鎖輸入。"""
+        """節點完全結束:鏡頭拉回、解鎖輸入;冒險結束則通知呼叫端。"""
         cam, tm = self.director.camera, self.director.tweens
         fx, fy = self._focus_point()
+
+        def landed():
+            self.busy = False
+            if self.outcome is not None and self.on_run_over is not None:
+                self.on_run_over(self.run)
+
         tm.add(Tween(cam, "x", cam.x, fx, CAM_SECS))
         tm.add(Tween(cam, "y", cam.y, fy, CAM_SECS))
-        tm.add(Tween(cam, "zoom", cam.zoom, 1.0, CAM_SECS,
-                     on_done=lambda: setattr(self, "busy", False)))
+        tm.add(Tween(cam, "zoom", cam.zoom, 1.0, CAM_SECS, on_done=landed))
 
     # ------------------------------------------------------------ 每幀
 
