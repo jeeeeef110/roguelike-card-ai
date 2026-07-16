@@ -1,5 +1,5 @@
 # PROGRESS
-更新日期:2026-07-08(沙盒衝刺:MCTS 調參 + build 矩陣 + M2 headless 全部完成)
+更新日期:2026-07-16(U2–U6 完成:完整局外循環——進階選擇/冒險/結算/解鎖/存檔續玩)
 
 ## 已完成
 ### 第一階段(core + 三版代理 + 模擬器)— 2026-07-07 完成
@@ -79,6 +79,113 @@
 - **U1 驗收門通過**;U2 剩餘(glow.py、scenes.py 繪製層)需 pygame → PC 首日:
   `pip install pygame`,寫 glow/scenes 時 tween 與 camera 直接可用
 
+### UI U2 繪製層(2026-07-15,PC 恢復首日;pygame 2.6.1)
+- [ui/glow.py] 發光渲染:同心多層遞增亮度烘焙成黑底 Surface,
+  BLEND_RGB_ADD 整張 blit(黑=加零,光源疊加自然累加=bloom 視覺);
+  圓與線段皆走快取(地圖邊靜態 → 位移量當 key 反覆命中);
+  層數上限 4(A5 白爆守則)硬夾在 bake 端
+- **A2.2 效能驗收門通過**:200 節點 + 220 邊滿載,dummy driver 軟體 blit
+  實測 556 fps(門檻 55,約 9 倍餘裕);快取 186 張烘焙面
+- 測試 177/177(新增 test_glow 10 項:快取同一性、層數上限、加法疊亮、
+  光暈亮度梯度、出界安全、60fps 驗收)
+- [ui/scenes.py] Scene 基類(on_enter/on_exit/handle/update/draw)+
+  Director(場景堆疊、共用 TweenManager 與 Camera):fade 轉場
+  (淡入底色遮罩→中點交接堆疊→淡出,0.5s)、pan 轉場(雙場景水平
+  滑動交接,0.7s,pop 反向)、transition=None 直切;轉場期間輸入阻擋、
+  進場者 update 先跑(待機動畫不等轉場結束);連續轉場=前一發立即結清
+- **U2 驗收門通過**:空場景 fade/pan 連續切換 fps>55(dummy driver 實測遠超)
+- 測試 190/190(新增 test_scenes 13 項:生命週期、中點交接語義、
+  輸入阻擋、pan 雙場景可見性、pop 反向、60fps 驗收)
+- 命名對照:規格 A2.3 的 Camera 即既有 ui/camera.py(U1 已完成),
+  scenes.py 直接 import,不重複實作
+
+### UI U3 MapScene(2026-07-15,同日)
+- [ui/map_scene.py] 地圖場景色塊版(A3.1):分層 DAG 透視佈局(每層 x 間距
+  壓縮 7%、y 遞減)、可走節點呼吸閃爍(亮度 0.6↔1.0/1.8s/錯相)、
+  走過路徑亮中性光、待機 ±1px 漂浮;點擊 → 鏡頭推近(zoom 1.6/0.7s)→
+  core 三段式結算 → 拉回;戰鬥由注入的 battle_hook 決定
+- 效能設計:呼吸亮度 8 階量化 + 半徑步進 2 → glow 快取鍵有界
+  (測試鎖定 <600 張);邊用普通線(glow_line 鍵含位移量,縮放會撐爆快取)
+- U3 佔位(U4/U5 換掉):獎勵自動拿第一張、休息自動回血、商店/事件路過、
+  節點用流派色色塊(icon U4 才上)
+- [ui/demo_map.py] 互動 demo:`python3 -m ui.demo_map [seed]`,
+  Pygbag 相容 async 主迴圈(A5:一開始就這樣寫)
+- **U3 驗收門通過**:headless 模擬點擊完整走完一輪地圖到 Boss 勝利
+  (test_full_walk_reaches_boss_and_victory);MapScene 繪製 >55fps
+- 測試 198/198(新增 test_map_scene 8 項:透視佈局、呼吸範圍與錯相、
+  點擊行走、busy 忽略輸入、完整走圖、快取有界、60fps)
+
+### UI U4 BattleScene 主體(2026-07-15,同日)
+- [ui/text.py] 文字快取渲染(A5 守則):key=(字串,字級,顏色,粗體),
+  上限 512 條超過整批清空;SysFont 找思源黑體/蘋方,CJK 正常
+- [ui/widgets.py] SmoothBar(「血條永不瞬降」:set() 下 300ms tween,
+  護甲=條外藍描邊)+ FloatTextLayer(傷害數字上飄淡出;持有 Surface
+  複本,動 alpha 不污染共享文字快取)
+- [ui/battle_scene.py] 戰鬥場景色塊版(A3.2):規則零重複——合法性/
+  費用/結算全問 engine(legal_actions/apply_action/card_cost),文案
+  複用 terminal_play 的 intent_text/card_text(同一套翻譯兩個前端)。
+  意圖 ease_out_back 彈入、出牌色塊卡飛向目標 0.25s(飛行中鎖輸入)、
+  受擊閃白 2 幀、傷害/護甲飄字、hover 上浮 20px、不可出牌灰框、
+  結算 overlay 點擊 → on_finish(win, hp_left)(U5 給 MapScene 接)
+- [ui/demo_battle.py] 手動對戰 demo:`python3 -m ui.demo_battle [敵人] [seed]`
+- **U4 驗收門通過**:規則式代理決策+UI 點擊路徑打贏巨鼠
+  (test_full_battle_win_vs_giant_rat_via_ui_clicks);>55fps
+- U4 佔位待補(記在待辦):藥水槽、MCTS 建議開關、Boss 二階段演出
+  (暗化+鏡頭震)、_choose 卡的選擇面板(現自動選第一個合法對象)
+- 測試 215/215(新增 test_ui_widgets 10 + test_battle_scene 7)
+
+### UI U4 收尾:地圖↔戰鬥接線(2026-07-15,同日)
+- [ui/map_scene.py] battle_hook=None(預設)時戰鬥節點推 BattleScene
+  互動對戰:spawn_enemy 帶菁英/進階倍率、run 的 HP/牌組/藥水進場、
+  戰後藥水寫回;結果以「重播 hook」餵回 enter_node——core 三段式介面
+  零改動。給定 battle_hook 則維持同步結算(headless 測試/模擬不變)。
+  地圖加冒險勝敗覆蓋文字
+- [ui/demo_map.py] 升級為完整一輪冒險 demo:地圖 ↔ 手動戰鬥循環
+- **修 bug:全套測試 segfault**——各測試檔 module fixture 各自
+  pygame.quit(),ui.text 快取的 Font 綁定舊執行期,下個模組再用即
+  原生層崩潰。修法:tests/conftest.py 統一 session 結束才 quit,
+  text.clear_cache 連字體一起清。教訓:跨模組快取 + 生命週期成對
+  的 C 資源(init/quit)必須單一擁有者
+- 整合驗收:test_full_interactive_run_via_ui_clicks——完整一輪冒險,
+  地圖點節點+戰鬥由規則式代理經 UI 點擊執行,直到勝負
+- 測試 221/221(新增 test_map_battle_wiring 6 項;連跑兩次確認穩定)
+
+### UI U5 抉擇場景(2026-07-15,同日)
+- [ui/choice_panel.py] 共用抉擇面板(A3.3):選項錯相滑入(80ms 遞增,
+  網格 30ms)、選中放大飛向牌堆角落+未選淡出、skip 鈕、金光橫掃
+  (sweep_color,菁英用);佈局自動切換:≤4 大卡一排 / >4 牌組網格
+  (9 欄,27 張內不出界);enabled=False 畫暗不可點。面板零規則,
+  效果全在呼叫端的 on_choose 回呼執行
+- [ui/choice_scenes.py] 節點接線:獎勵三選一(菁英全稀有+金光)、
+  休息二選一(回血顯示實際回復量/鍛造→牌組網格,網格可反悔改回血)、
+  商店(買稀有卡/刪卡→網格/買藥水,各限購一次,買完面板重開更新金幣,
+  買不起畫暗)、三事件(鐵匠免費鍛造/毒藥商淬毒含代價選擇+試用品/
+  老戰士防禦換隨機攻擊+「獲得卡」展示面板)。效果全走 core 公開 API
+- [ui/map_scene.py] _after_enter 分流:互動模式推面板、headless 模式
+  (有 battle_hook)維持同步佔位策略——模擬器與舊測試零改動
+- 佔位:藥水掉落自動撿(滿則放棄);戰鬥內藥水槽未做(見待辦)
+- 測試 240/240(新增 test_choice_panel 7 + test_choice_scenes 11;
+  wiring 測試改為點面板路徑)
+
+### UI U5 收尾 + U6 養成接線(2026-07-16)
+- [ui/battle_scene.py] 藥水槽(A3.2):右下三圓槽、點擊使用=免費動作
+  (engine 管,不耗能量不計攻擊上限)、對應色光環擴散、效果飄字/血條
+  接動畫;demo_battle 預載兩瓶供測試。測試 +3(含空槽 no-op)
+- [ui/settle_scene.py] SettleScene(A3.3):碎片數字滾動累加(點擊快轉)、
+  勝敗統計、進階解鎖提示;勝利且有未解鎖稀有卡 → Boss 解鎖三選一
+  (複用 ChoicePanel+金光,不可跳過=收集軸主循環);每次進度變動即
+  meta.save(save_path=None 不落地,測試用)
+- [ui/map_scene.py] on_run_over 回呼:冒險結束、鏡頭拉回落定後通知
+- [ui/demo_map.py] 完整局外循環:讀 save/meta.json → 進階選擇面板
+  (CLI 給進階就跳過)→ 冒險(unlocked_rares 進 RunState)→ 結算/解鎖
+  → 再來一輪(seed+1)。save/ 已入 .gitignore
+- 堆疊紀律:next_run 先 pop 結算再選進階(replace 地圖),每輪之間
+  堆疊深度固定 1,不洩漏
+- 測試 251/251(新增 test_settle_scene 8:結算數學、滾動快轉、解鎖
+  面板、敗北無解鎖、全解鎖跳過、存檔續玩 roundtrip、on_run_over 時序)
+- **U6 驗收門通過**(Boss 解鎖三選一/進階選擇/存檔續玩);
+  聚光燈隆重進場演出留 U7 打磨
+
 ## A/B 對照紀錄(新增)
 ### 實驗 3(2026-07-08):MCTS rollout policy × iterations
 石像兵(100 場):random@200 剩HP 23.5 → heuristic@200 **30.7**(追平代差:
@@ -149,8 +256,9 @@ heuristic@500 追平 Expectimax(98%)。待辦 #2 歸因確定:主因是
 ## 待辦(依優先序,PC 恢復後)
 1. W5-6:Pygame UI——照 docs/UI視覺規格與格子戰鬥提案.md 的 A 部執行
    (「暗夜光網」;U4 前禁用美術素材;一開始就用 Pygbag 相容寫法)。
-   **U1 已完成、U2 完成一半(tween/camera 綠燈)**:PC 首日裝 pygame 後
-   從 glow.py 接手,再 scenes.py,然後 U3 MapScene
+   **U1–U6 完成(demo_map = 完整局外循環)**:剩 U7 音效+打磨+demo 影片
+   (Kenney 音效包接 OGG、Title 場景、Boss 二階段演出、MCTS 出牌建議
+   開關、解鎖聚光燈、鏡頭焦點取重心改善畫面利用率、光暈漸層加階)
 2. 矩陣定稿:expectimax/mcts 各格 n≥200 重跑(沙盒僅 50 場,±7%);
    節奏流×expectimax 需先做搜尋剪枝(見 4)才可能量得完
 3. MCTS 反甲流殘差:rollout 加入「等待/疊甲節奏」規則或 payoff 先驗,
@@ -220,6 +328,11 @@ heuristic@500 追平 Expectimax(98%)。待辦 #2 歸因確定:主因是
 ## 已知問題
 - shop_buy_card 不驗證 card_id 是否為本次商店提供的那張(信任呼叫端)——
   UI 接上時記得只把商店 offer 的卡傳進來
+- (已修 2026-07-15)Jeff 實測閃退:ENEMY_NAMES/intent_text 缺第二波
+  新敵人(吸血蝠/狂戰士),菁英戰開場 KeyError。修正 + 完整性鎖測試
+  (test_every_enemy_renders_with_name_and_intent_text:每隻敵人
+  UI 畫得出來、每個意圖有文案)。教訓:內容表(敵人/卡/意圖)新增時,
+  表現層對照表要有測試強制同步,不能靠記憶
 - 升級卡的「二次升級」(如 bash_s_s)走 events 的延遲註冊:同行程可用,
   但存檔跨行程讀回不保證存在。MVP 建議限制每張卡只能鍛造一次,
   或存檔系統上線時把二階 id 一併預註冊
