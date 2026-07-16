@@ -139,6 +139,48 @@ def test_full_battle_win_vs_giant_rat_via_ui_clicks():
     assert results == [(True, sc.s.player.hp)]
 
 
+# ------------------------------------------------------------ 藥水槽(A3.2)
+
+def _battle_with_potions(potions, enemy_id="giant_rat"):
+    sc = _battle(enemy_id)
+    sc.s.player.potions = list(potions)
+    sc.draw(pygame.display.get_surface())
+    return sc
+
+
+def test_potion_fire_flask_damages_enemy_and_consumes():
+    from ui.battle_scene import POTION_SLOTS
+    sc = _battle_with_potions(["fire_flask"])
+    hp0, energy0 = sc.s.enemy.hp, sc.s.player.energy
+    _click(sc, POTION_SLOTS[0])
+    assert sc.s.enemy.hp == hp0 - 10
+    assert sc.s.player.potions == []            # 消耗掉
+    assert sc.s.player.energy == energy0        # 免費動作
+    assert sc.ebar.value == sc.s.enemy.hp       # 血條已下 tween
+    assert sc._bursts and sc.floats.active_count > 0
+    _settle(sc, 0.6)
+    assert not sc._bursts                       # 光環擴散完回收
+
+
+def test_potion_healing_and_block_feedback():
+    from ui.battle_scene import POTION_SLOTS
+    sc = _battle_with_potions(["healing_vial", "iron_draught"])
+    sc.s.player.hp = 30
+    _click(sc, POTION_SLOTS[0])                 # 治療 +12
+    assert sc.s.player.hp == 42
+    _click(sc, POTION_SLOTS[0])                 # 剩鐵壁(位移到槽 0)
+    assert sc.s.player.block == 12
+    assert sc.s.player.potions == []
+
+
+def test_empty_slot_click_is_noop():
+    from ui.battle_scene import POTION_SLOTS
+    sc = _battle_with_potions([])
+    hp0 = sc.s.enemy.hp
+    _click(sc, POTION_SLOTS[2])
+    assert sc.s.enemy.hp == hp0 and not sc._bursts
+
+
 # ------------------------------------------------------------ 完整性鎖
 
 def test_every_enemy_renders_with_name_and_intent_text():

@@ -28,6 +28,7 @@ async def main(enemy_id: str = "giant_rat", seed: int = 0) -> None:
     screen = pygame.display.set_mode((W, H))
     pygame.display.set_caption("暗夜光網 — 戰鬥 demo(U4)")
     p = PlayerState(hp=PLAYER_HP, max_hp=PLAYER_HP, deck=list(STARTING_DECK))
+    p.potions = ["fire_flask", "healing_vial"]   # demo 預載兩瓶,試藥水槽用
     s = GameState(p, make_enemy(enemy_id), seed=seed)
     start_battle(s, enemy_ai)
 
